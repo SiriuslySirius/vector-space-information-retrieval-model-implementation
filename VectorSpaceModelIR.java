@@ -85,7 +85,7 @@ public class VectorSpaceModelIR {
          * line - a line read from file
          * word - an extracted word from a line
          */
-        String line, word;
+        String line = "", word;
 
         /*
          * Stores the document ID
@@ -95,24 +95,48 @@ public class VectorSpaceModelIR {
         try {
             br = new BufferedReader(new FileReader(inputPath));
 
-            while ((line = br.readLine()) != null) {
+            line = br.readLine();
+            while (line != null) {
+
+                // process the line by extracting words using the wordPattern
+                wordMatcher = wordPattern.matcher(line);
+
+                // Will store a cleaner version of line into String ArrayList
+                ArrayList<String> cleanLine = new ArrayList<String>();
+
                 if (line.contains(".I")) {
                     docID = Integer.parseInt(line.replaceAll("[^0-9]", ""));
-                    continue;
 
-                } else if (line.contains(".T")) {
+                } 
+                else if (line.contains(".T")) {
+                    while((line = br.readLine()).compareTo(".A") != 0) {
+                        // Process one word at a time
+                        while (wordMatcher.find()) {
 
-                } else if (line.contains(".A") || line.contains(".B")) {
-                    br.readLine();
-                    continue;
-
-                } else if (line.contains(".W")) {
-                    line = br.readLine();
-                    while (line.compareTo(".I") != 0) {
+                            // Extract and convert the word to lowercase
+                            word = line.substring(wordMatcher.start(), wordMatcher.end());
+                            cleanLine.add(word.toLowerCase());
+                        } // while - wordMatcher
 
                     }
-                }
 
+                } else if (line.contains(".A")) {
+                    while((line = br.readLine()).compareTo(".W") != 0) {
+
+                    }
+
+                } else if (line.contains(".B")) {
+                    while((line = br.readLine()).compareTo(".W") != 0) {
+
+                    }
+
+                } else if (line.contains(".W")) {
+                    while((line = br.readLine()).compareTo(".I") != 0) {
+
+                    }
+
+
+                }
             }
         } catch (IOException ex) {
             System.err.println("File " + inputPath + " not found. Program terminated.\n");
