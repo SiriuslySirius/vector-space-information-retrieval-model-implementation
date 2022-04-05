@@ -29,31 +29,31 @@ public class VectorSpaceModelIR {
      * 
      */
 
-    // TreeMap<DocID, Title> 
+    // TreeMap<DocID, Title>
     private TreeMap<Integer, String> documents;
 
-    // TreeMap<Term, TreeMap<DocID, Title TF-IDF>>
-    private TreeMap<String, TreeMap<Float, Integer>> termTitleWeights;
-    
-    //TreeMap<Term, TreeMap<DocID, Abstract TF-IDF>>
-    private TreeMap<String, TreeMap<Float, Integer>> termAbstractWeights;
-    
-    //TreeMap<DocID, TF-IDF Weight>
+    // TreeMap<Term, TreeMap<DocID, Title Term Frequency>>
+    private TreeMap<String, TreeMap<Integer, Integer>> termTitleFreq;
+
+    // TreeMap<Term, TreeMap<DocID, Abstract Term Freq>>
+    private TreeMap<String, TreeMap<Integer, Integer>> termAbstractFreq;
+
+    // TreeMap<DocID, TF-IDF Weight>
     private TreeMap<Integer, Float> docTitleWeights;
     private TreeMap<Integer, Float> docAbstractWeights;
 
-    //TreeMap<DocID, Cosine Similarity Scores>
+    // TreeMap<DocID, Cosine Similarity Scores>
     private TreeMap<Integer, Float> cosineSimilarityScoresTitle;
     private TreeMap<Integer, Float> cosineSimilarityScoresAbstract;
 
-    //TreeMap<Final Cosine Similarity Scores, DocID>
+    // TreeMap<Final Cosine Similarity Scores, DocID>
     private TreeMap<Float, Integer> finalCosineSimilarityScores;
 
     // Default Constructor; it's all you really need.
     public VectorSpaceModelIR() {
         this.documents = new TreeMap<Integer, String>();
-        this.termTitleWeights = new TreeMap<String, TreeMap<Float, Integer>>();
-        this.termAbstractWeights = new TreeMap<String, TreeMap<Float, Integer>>();
+        this.termTitleFreq = new TreeMap<String, TreeMap<Integer, Integer>>();
+        this.termAbstractFreq = new TreeMap<String, TreeMap<Integer, Integer>>();
         this.docTitleWeights = new TreeMap<Integer, Float>();
         this.docAbstractWeights = new TreeMap<Integer, Float>();
         this.cosineSimilarityScoresTitle = new TreeMap<Integer, Float>();
@@ -62,45 +62,98 @@ public class VectorSpaceModelIR {
     }
 
     /*
+     * 
+     * Read the document and keep track of docID-Titles and
+     * term and document frequencies.
+     * 
+     */
+    void BuildData(String inputPath) {
+
+        System.out.println("\nInput file path name is: " + inputPath);
+
+        // br for efficiently reading characters from an input stream
+        BufferedReader br = null;
+
+        /*
+         * wordPattern specifies pattern for words using a regular expression
+         * wordMatcher finds words by spotting word patterns with input
+         */
+        Pattern wordPattern = Pattern.compile("[a-zA-Z]+");
+        Matcher wordMatcher;
+
+        /*
+         * line - a line read from file
+         * word - an extracted word from a line
+         */
+        String line, word;
+
+        /*
+         * Stores the document ID
+         */
+        int docID = 0;
+
+        try {
+            br = new BufferedReader(new FileReader(inputPath));
+
+            while ((line = br.readLine()) != null) {
+                if (line.contains(".I")) {
+                    docID = Integer.parseInt(line.replaceAll("[^0-9]", ""));
+                    continue;
+
+                } else if (line.contains(".T")) {
+
+                } else if (line.contains(".A") || line.contains(".B")) {
+                    br.readLine();
+                    continue;
+
+                } else if (line.contains(".W")) {
+                    line = br.readLine();
+                    while (line.compareTo(".I") != 0) {
+
+                    }
+                }
+
+            }
+        } catch (IOException ex) {
+            System.err.println("File " + inputPath + " not found. Program terminated.\n");
+            System.exit(1);
+        }
+
+    }
+
+    /*
      *
-     * GLOBAL VARIABLES
+     * Calculate and store TF-IDF weights for each term in each
+     * document for both title and abstract
      *
      */
-    // An array to hold Gutenberg corpus file names
-    static ArrayList<String> inputFileNames = new ArrayList<String>();
+    void calcTFXIDF() {
 
-    // To keep count of the amount of files in the corpus provided
-    static int fileCount = 0;
+    }
 
-    // An array of default output file names for ease of access.
-    static String outputFiles[] = new String[] {
-            "proximity_query_result.csv",
-            "proximity_query_detailed_result.csv",
-    };
+    /*
+     *
+     * Calculate and store Cosine Similarity Scores for each
+     * document for both title and abstract
+     *
+     */
 
-    static String outputPath = "";
+    /*
+     *
+     * Calculate final Cosine Similarity Scores for each
+     * document (Can do it in one method?)
+     *
+     */
+
+    void calcCSS() {
+
+    }
 
     /*
      *
      * HELPER METHODS
      *
      */
-
-    /*
-     * loads all files names in the directory subtree into an array
-     * violates good programming practice by accessing a global variable
-     * (inputFileNames)
-     */
-    public static void listFilesInPath(final File path) {
-        for (final File fileEntry : path.listFiles()) {
-            if (fileEntry.isDirectory()) {
-                listFilesInPath(fileEntry);
-            } else if (fileEntry.getName().endsWith((".txt"))) {
-                fileCount++;
-                inputFileNames.add(fileEntry.getPath());
-            }
-        }
-    }
 
     /*
      *
@@ -140,42 +193,11 @@ public class VectorSpaceModelIR {
         }
 
         /*
-         * If the files exists, we need to empty them.
-         * We will be appending new data into the documents
-         */
-        for (String file : outputFiles) {
-            String path = args[1] + "\\" + args[2].toLowerCase() + "_" + args[3].toLowerCase() + "_" + args[4] + "_"
-                    + file;
-            try {
-                new PrintWriter(path, "UTF-8").close();
-            } catch (FileNotFoundException ex) {
-                System.err.println(ex);
-                System.err.println("\nProgram terminated\n");
-                System.exit(1);
-            } catch (UnsupportedEncodingException ex) {
-                System.err.println(ex);
-                System.err.println("\nProgram terminated\n");
-                System.exit(1);
-            }
-        }
-
-        /*
          * Extract input file name from command line arguments
          * This is the name of the file from the Gutenberg corpus
          */
         String inputFileDirName = args[0];
         System.out.println("\nInput files directory path name is: " + inputFileDirName);
-
-        /*
-         * Extract output path from command line arguments
-         * This is the name of the file from the Gutenberg corpus
-         */
-        outputPath = args[1];
-        System.out.println("Output directory path name is: " + outputPath);
-
-        // Collects file names and write them to
-        listFilesInPath(new File(inputFileDirName));
-        System.out.println("Number of Gutenberg corpus files: " + fileCount);
 
         // br for efficiently reading characters from an input stream
         BufferedReader br = null;
