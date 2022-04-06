@@ -22,6 +22,9 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.regex.Matcher;
 
+// Lucene
+import org.apache.lucene.analysis.PorterStemmer;
+
 public class VectorSpaceModelIR {
     /*
      *
@@ -95,6 +98,8 @@ public class VectorSpaceModelIR {
         try {
             br = new BufferedReader(new FileReader(inputPath));
 
+            PorterStemmer stemmer = new PorterStemmer();
+
             line = br.readLine();
             while (line != null) {
 
@@ -109,29 +114,85 @@ public class VectorSpaceModelIR {
 
                 } 
                 else if (line.contains(".T")) {
+                    String title = "";
                     while((line = br.readLine()).compareTo(".A") != 0) {
+                        title = title + line + " ";
                         // Process one word at a time
                         while (wordMatcher.find()) {
-
                             // Extract and convert the word to lowercase
                             word = line.substring(wordMatcher.start(), wordMatcher.end());
                             cleanLine.add(word.toLowerCase());
                         } // while - wordMatcher
 
+                        /*
+                        * Handles cases if the line is empty
+                        *
+                        * Without this, it will count empty strings
+                        * because cleanLine is originally empty.
+                        */
+                        if (!cleanLine.isEmpty()) {
+                            for (String term : cleanLine) {
+                                String stemmedTerm = stemmer.stem(term);
+                                 // If the term exists in the title term frequency
+                                if (this.termTitleFreq.containsKey(stemmedTerm)) {
+                                    // If the document exists in the title term frequency
+                                    if (this.termTitleFreq.get(stemmedTerm).containsKey(docID)) {
+                                        //Update the term count from the document.
+                                        this.termTitleFreq.get(stemmedTerm).replace(docID, this.termTitleFreq.get(stemmedTerm).get(docID) + 1);
+                                    } else {
+                                        // Add a new document term frequency
+                                        this.termTitleFreq.get(stemmedTerm).put(docID, 1);
+                                    }
+                                // If the term doesn't exist.
+                                } else {
+                                    // Create a new document term frequency holder
+                                    TreeMap<Integer, Integer> newTermDocFreqHolder = new TreeMap<>();
+                                    // Put in the new document term frequency for DocID
+                                    newTermDocFreqHolder.put(docID, 1);
+                                    // Insert a new term into termTitleFreq
+                                    termTitleFreq.put(stemmedTerm, newTermDocFreqHolder);
+                                }
+                            }
+                        }
                     }
 
-                } else if (line.contains(".A")) {
-                    while((line = br.readLine()).compareTo(".W") != 0) {
+                    // Add the new document into the documents TreeMap
+                    title.trim();
+                    documents.put(docID, title);
+                    
 
+                } else if (line.contains(".A")) {
+                    while((line = br.readLine()).compareTo(".B") != 0) {
+                        continue;
                     }
 
                 } else if (line.contains(".B")) {
                     while((line = br.readLine()).compareTo(".W") != 0) {
-
+                        continue;
                     }
 
                 } else if (line.contains(".W")) {
                     while((line = br.readLine()).compareTo(".I") != 0) {
+                        while((line = br.readLine()).compareTo(".A") != 0) {
+                            // Process one word at a time
+                            while (wordMatcher.find()) {
+                                // Extract and convert the word to lowercase
+                                word = line.substring(wordMatcher.start(), wordMatcher.end());
+                                cleanLine.add(word.toLowerCase());
+                            } // while - wordMatcher
+    
+                            /*
+                            * Handles cases if the line is empty
+                            *
+                            * Without this, it will count empty strings
+                            * because cleanLine is originally empty.
+                            */
+                            if (!cleanLine.isEmpty()) {
+                                for (String term : cleanLine) {
+                                    // Do stuff
+                                }
+                            }
+                        }
 
                     }
 
