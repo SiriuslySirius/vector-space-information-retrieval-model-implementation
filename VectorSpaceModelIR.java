@@ -54,11 +54,16 @@ public class VectorSpaceModelIR {
 
     // Default Constructor; it's all you really need.
     public VectorSpaceModelIR() {
+        // For storing data
         this.documents = new TreeMap<Integer, String>();
         this.termTitleFreq = new TreeMap<String, TreeMap<Integer, Integer>>();
         this.termAbstractFreq = new TreeMap<String, TreeMap<Integer, Integer>>();
+
+        // For storing weights TF-IDF Weights
         this.docTitleWeights = new TreeMap<Integer, Float>();
         this.docAbstractWeights = new TreeMap<Integer, Float>();
+
+        // For storing Cosine Similarity Scores
         this.cosineSimilarityScoresTitle = new TreeMap<Integer, Float>();
         this.cosineSimilarityScoresAbstract = new TreeMap<Integer, Float>();
         this.finalCosineSimilarityScores = new TreeMap<Float, Integer>();
@@ -189,7 +194,26 @@ public class VectorSpaceModelIR {
                             */
                             if (!cleanLine.isEmpty()) {
                                 for (String term : cleanLine) {
-                                    // Do stuff
+                                    String stemmedTerm = stemmer.stem(term);
+                                        // If the term exists in the title term frequency
+                                    if (this.termAbstractFreq.containsKey(stemmedTerm)) {
+                                        // If the document exists in the title term frequency
+                                        if (this.termAbstractFreq.get(stemmedTerm).containsKey(docID)) {
+                                            //Update the term count from the document.
+                                            this.termAbstractFreq.get(stemmedTerm).replace(docID, this.termAbstractFreq.get(stemmedTerm).get(docID) + 1);
+                                        } else {
+                                            // Add a new document term frequency
+                                            this.termAbstractFreq.get(stemmedTerm).put(docID, 1);
+                                        }
+                                    // If the term doesn't exist.
+                                    } else {
+                                        // Create a new document term frequency holder
+                                        TreeMap<Integer, Integer> newTermDocFreqHolder = new TreeMap<>();
+                                        // Put in the new document term frequency for DocID
+                                        newTermDocFreqHolder.put(docID, 1);
+                                        // Insert a new term into termTitleFreq
+                                        termAbstractFreq.put(stemmedTerm, newTermDocFreqHolder);
+                                    }
                                 }
                             }
                         }
