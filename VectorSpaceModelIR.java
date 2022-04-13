@@ -104,6 +104,7 @@ public class VectorSpaceModelIR {
         try {
             br = new BufferedReader(new FileReader(inputPath));
 
+            // Stemmer
             PorterStemmer stemmer = new PorterStemmer();
 
             line = br.readLine();
@@ -317,21 +318,17 @@ public class VectorSpaceModelIR {
         // Will store a cleaner version of query into String ArrayList
         ArrayList<String> cleanQuery = new ArrayList<String>();
 
+        // Stemmer
+        PorterStemmer stemmer = new PorterStemmer();
+
         while (wordMatcher.find()) {
             // Extract and convert the word to lowercase
             String word = query.substring(wordMatcher.start(), wordMatcher.end());
-            cleanQuery.add(word.toLowerCase());
+            cleanQuery.add(stemmer.stem(word.toLowerCase()));
         } // while - wordMatcher
 
         // TreeMap<Term, Raw TF>
         TreeMap<String, Integer> termQueryFreq = new TreeMap<String, Integer>();
-
-        /*
-         *
-         *
-         * To do: Don't forget to put stemmer for query.
-         *
-         */
 
         // Get the terms and their frequencies from cleanQuery
         for (String term : cleanQuery) {
@@ -364,6 +361,9 @@ public class VectorSpaceModelIR {
          * To do: We need to get terms in the document that are in the queue
          * to store into an ArrayList which could then be iterated simultaneously.
          * i is the term where V is the intersection of terms in q and d.
+         * 
+         * Loop through the docs ArrayList
+         * ArrayList<ArrayList<Doubles>>
          *
          */
 
