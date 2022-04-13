@@ -42,9 +42,10 @@ public class VectorSpaceModelIR {
     // TreeMap<Term, TreeMap<DocID, Abstract Term Freq>>
     private TreeMap<String, TreeMap<Integer, Integer>> termAbstractFreq;
 
-    // TreeMap<DocID, TF-IDF Weight>
-    private TreeMap<Integer, ArrayList<Double>> docTitleWeights;
-    private TreeMap<Integer, ArrayList<Double>> docAbstractWeights;
+
+    // TreeMap<DocID, TreeMap<Term, TF-IDF Weight>>
+    private TreeMap<Integer, TreeMap<String, Double>> docTitleWeights;
+    private TreeMap<Integer, TreeMap<String, Double>> docAbstractWeights;
 
     // TreeMap<DocID, Cosine Similarity Scores>
     private TreeMap<Integer, Double> cosineSimilarityScoresTitle;
@@ -61,8 +62,8 @@ public class VectorSpaceModelIR {
         this.termAbstractFreq = new TreeMap<String, TreeMap<Integer, Integer>>();
 
         // For storing weights TF-IDF Weights
-        this.docTitleWeights = new TreeMap<Integer, ArrayList<Double>>();
-        this.docAbstractWeights = new TreeMap<Integer, ArrayList<Double>>();
+        this.docTitleWeights = new TreeMap<Integer, TreeMap<String, Double>>();
+        this.docAbstractWeights = new TreeMap<Integer, TreeMap<String, Double>>();
 
         // For storing Cosine Similarity Scores
         this.cosineSimilarityScoresTitle = new TreeMap<Integer, Double>();
@@ -235,7 +236,7 @@ public class VectorSpaceModelIR {
      *
      * Calculate and store TF-IDF weights for each term in each
      * document for both title and abstract
-     *
+     * 
      */
     void calcTFXIDF() {
         int collectionSize = this.documents.size();
@@ -256,14 +257,19 @@ public class VectorSpaceModelIR {
 
                 // If the document exists in docTitleWeights
                 if (docTitleWeights.containsKey(docID)) {
-                    docTitleWeights.get(docID).add(
-                            (raw_tf > 0 ? 1 + Math.log(raw_tf) : 0) * Math.log(collectionSize / termDocFreq));
+                    docTitleWeights.get(docID).put(
+                        term.getKey(),
+                        (raw_tf > 0 ? 1 + Math.log(raw_tf) : 0) * Math.log(collectionSize / termDocFreq)
+                    );
                 }
                 // If the document does not exist in docTitleWeights
                 else {
-                    docTitleWeights.put(docID, new ArrayList<Double>(
-                            Arrays.asList(
-                                    (raw_tf > 0 ? 1 + Math.log(raw_tf) : 0) * Math.log(collectionSize / termDocFreq))));
+                    TreeMap<String, Double> newTree = new TreeMap<String, Double>();
+                    newTree.put(
+                        term.getKey(),
+                        ((raw_tf > 0 ? 1 + Math.log(raw_tf) : 0) * Math.log(collectionSize / termDocFreq))
+                    );
+                    docTitleWeights.put(docID, newTree);
                 }
             });
         });
@@ -283,14 +289,19 @@ public class VectorSpaceModelIR {
 
                 // If the document exists in docTitleWeights
                 if (docAbstractWeights.containsKey(docID)) {
-                    docAbstractWeights.get(docID).add(
-                            (raw_tf > 0 ? 1 + Math.log(raw_tf) : 0) * Math.log(collectionSize / termDocFreq));
+                    docAbstractWeights.get(docID).put(
+                            term.getKey(),
+                            (raw_tf > 0 ? 1 + Math.log(raw_tf) : 0) * Math.log(collectionSize / termDocFreq)
+                    );
                 }
                 // If the document does not exist in docTitleWeights
                 else {
-                    docAbstractWeights.put(docID, new ArrayList<Double>(
-                            Arrays.asList(
-                                    (raw_tf > 0 ? 1 + Math.log(raw_tf) : 0) * Math.log(collectionSize / termDocFreq))));
+                    TreeMap<String, Double> newTree = new TreeMap<String, Double>();
+                    newTree.put(
+                        term.getKey(),
+                        ((raw_tf > 0 ? 1 + Math.log(raw_tf) : 0) * Math.log(collectionSize / termDocFreq))
+                    );
+                    docAbstractWeights.put(docID, newTree);
                 }
             });
         });
@@ -366,6 +377,12 @@ public class VectorSpaceModelIR {
          * ArrayList<ArrayList<Doubles>>
          *
          */
+
+         /*
+         * Get the intersection terms from the document weights for both
+         * the title and abstract for Cosine Similarity.
+         */
+
 
     }
 
