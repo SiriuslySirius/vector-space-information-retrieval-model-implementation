@@ -17,13 +17,14 @@ import java.io.UnsupportedEncodingException;
 import java.io.IOException;
 import java.util.regex.Pattern;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.regex.Matcher;
 
-// Lucene
-import org.apache.lucene.analysis.PorterStemmer;
+// OpenNLP Stemmer
+import opennlp.tools.stemmer.PorterStemmer;
 
 public class VectorSpaceModelIR {
     /*
@@ -42,15 +43,15 @@ public class VectorSpaceModelIR {
     private TreeMap<String, TreeMap<Integer, Integer>> termAbstractFreq;
 
     // TreeMap<DocID, TF-IDF Weight>
-    private TreeMap<Integer, Float> docTitleWeights;
-    private TreeMap<Integer, Float> docAbstractWeights;
+    private TreeMap<Integer, ArrayList<Double>> docTitleWeights;
+    private TreeMap<Integer, ArrayList<Double>> docAbstractWeights;
 
     // TreeMap<DocID, Cosine Similarity Scores>
-    private TreeMap<Integer, Float> cosineSimilarityScoresTitle;
-    private TreeMap<Integer, Float> cosineSimilarityScoresAbstract;
+    private TreeMap<Integer, Double> cosineSimilarityScoresTitle;
+    private TreeMap<Integer, Double> cosineSimilarityScoresAbstract;
 
     // TreeMap<Final Cosine Similarity Scores, DocID>
-    private TreeMap<Float, Integer> finalCosineSimilarityScores;
+    private TreeMap<Double, Integer> finalCosineSimilarityScores;
 
     // Default Constructor; it's all you really need.
     public VectorSpaceModelIR() {
@@ -60,13 +61,13 @@ public class VectorSpaceModelIR {
         this.termAbstractFreq = new TreeMap<String, TreeMap<Integer, Integer>>();
 
         // For storing weights TF-IDF Weights
-        this.docTitleWeights = new TreeMap<Integer, Float>();
-        this.docAbstractWeights = new TreeMap<Integer, Float>();
+        this.docTitleWeights = new TreeMap<Integer, ArrayList<Double>>();
+        this.docAbstractWeights = new TreeMap<Integer, ArrayList<Double>>();
 
         // For storing Cosine Similarity Scores
-        this.cosineSimilarityScoresTitle = new TreeMap<Integer, Float>();
-        this.cosineSimilarityScoresAbstract = new TreeMap<Integer, Float>();
-        this.finalCosineSimilarityScores = new TreeMap<Float, Integer>();
+        this.cosineSimilarityScoresTitle = new TreeMap<Integer, Double>();
+        this.cosineSimilarityScoresAbstract = new TreeMap<Integer, Double>();
+        this.finalCosineSimilarityScores = new TreeMap<Double, Integer>();
     }
 
     /*
@@ -117,10 +118,9 @@ public class VectorSpaceModelIR {
                 if (line.contains(".I")) {
                     docID = Integer.parseInt(line.replaceAll("[^0-9]", ""));
 
-                } 
-                else if (line.contains(".T")) {
+                } else if (line.contains(".T")) {
                     String title = "";
-                    while((line = br.readLine()).compareTo(".A") != 0) {
+                    while ((line = br.readLine()).compareTo(".A") != 0) {
                         title = title + line + " ";
                         // Process one word at a time
                         while (wordMatcher.find()) {
@@ -130,25 +130,26 @@ public class VectorSpaceModelIR {
                         } // while - wordMatcher
 
                         /*
-                        * Handles cases if the line is empty
-                        *
-                        * Without this, it will count empty strings
-                        * because cleanLine is originally empty.
-                        */
+                         * Handles cases if the line is empty
+                         *
+                         * Without this, it will count empty strings
+                         * because cleanLine is originally empty.
+                         */
                         if (!cleanLine.isEmpty()) {
                             for (String term : cleanLine) {
                                 String stemmedTerm = stemmer.stem(term);
-                                 // If the term exists in the title term frequency
+                                // If the term exists in the title term frequency
                                 if (this.termTitleFreq.containsKey(stemmedTerm)) {
                                     // If the document exists in the title term frequency
                                     if (this.termTitleFreq.get(stemmedTerm).containsKey(docID)) {
-                                        //Update the term count from the document.
-                                        this.termTitleFreq.get(stemmedTerm).replace(docID, this.termTitleFreq.get(stemmedTerm).get(docID) + 1);
+                                        // Update the term count from the document.
+                                        this.termTitleFreq.get(stemmedTerm).replace(docID,
+                                                this.termTitleFreq.get(stemmedTerm).get(docID) + 1);
                                     } else {
                                         // Add a new document term frequency
                                         this.termTitleFreq.get(stemmedTerm).put(docID, 1);
                                     }
-                                // If the term doesn't exist.
+                                    // If the term doesn't exist.
                                 } else {
                                     // Create a new document term frequency holder
                                     TreeMap<Integer, Integer> newTermDocFreqHolder = new TreeMap<>();
@@ -164,48 +165,48 @@ public class VectorSpaceModelIR {
                     // Add the new document into the documents TreeMap
                     title.trim();
                     documents.put(docID, title);
-                    
 
                 } else if (line.contains(".A")) {
-                    while((line = br.readLine()).compareTo(".B") != 0) {
+                    while ((line = br.readLine()).compareTo(".B") != 0) {
                         continue;
                     }
 
                 } else if (line.contains(".B")) {
-                    while((line = br.readLine()).compareTo(".W") != 0) {
+                    while ((line = br.readLine()).compareTo(".W") != 0) {
                         continue;
                     }
 
                 } else if (line.contains(".W")) {
-                    while((line = br.readLine()).compareTo(".I") != 0) {
-                        while((line = br.readLine()).compareTo(".A") != 0) {
+                    while ((line = br.readLine()).compareTo(".I") != 0) {
+                        while ((line = br.readLine()).compareTo(".A") != 0) {
                             // Process one word at a time
                             while (wordMatcher.find()) {
                                 // Extract and convert the word to lowercase
                                 word = line.substring(wordMatcher.start(), wordMatcher.end());
                                 cleanLine.add(word.toLowerCase());
                             } // while - wordMatcher
-    
+
                             /*
-                            * Handles cases if the line is empty
-                            *
-                            * Without this, it will count empty strings
-                            * because cleanLine is originally empty.
-                            */
+                             * Handles cases if the line is empty
+                             *
+                             * Without this, it will count empty strings
+                             * because cleanLine is originally empty.
+                             */
                             if (!cleanLine.isEmpty()) {
                                 for (String term : cleanLine) {
                                     String stemmedTerm = stemmer.stem(term);
-                                        // If the term exists in the title term frequency
+                                    // If the term exists in the title term frequency
                                     if (this.termAbstractFreq.containsKey(stemmedTerm)) {
                                         // If the document exists in the title term frequency
                                         if (this.termAbstractFreq.get(stemmedTerm).containsKey(docID)) {
-                                            //Update the term count from the document.
-                                            this.termAbstractFreq.get(stemmedTerm).replace(docID, this.termAbstractFreq.get(stemmedTerm).get(docID) + 1);
+                                            // Update the term count from the document.
+                                            this.termAbstractFreq.get(stemmedTerm).replace(docID,
+                                                    this.termAbstractFreq.get(stemmedTerm).get(docID) + 1);
                                         } else {
                                             // Add a new document term frequency
                                             this.termAbstractFreq.get(stemmedTerm).put(docID, 1);
                                         }
-                                    // If the term doesn't exist.
+                                        // If the term doesn't exist.
                                     } else {
                                         // Create a new document term frequency holder
                                         TreeMap<Integer, Integer> newTermDocFreqHolder = new TreeMap<>();
@@ -219,7 +220,6 @@ public class VectorSpaceModelIR {
                         }
 
                     }
-
 
                 }
             }
@@ -237,24 +237,135 @@ public class VectorSpaceModelIR {
      *
      */
     void calcTFXIDF() {
+        int collectionSize = this.documents.size();
 
+        // For iterating term level of termTitleFreqEntry
+        Set<Map.Entry<String, TreeMap<Integer, Integer>>> termTitleFreqEntry = this.termTitleFreq.entrySet();
+        termTitleFreqEntry.forEach(term -> {
+            // Get the document term frequency from the docID TreeMap size
+            int termDocFreq = term.getValue().size();
+
+            // For iterating doc level
+            Set<Map.Entry<Integer, Integer>> docEntry = term.getValue().entrySet();
+            docEntry.forEach(doc -> {
+                // Get the key which is docID
+                int docID = doc.getKey();
+                // Get the value which is the term frequency of the document
+                int raw_tf = doc.getValue();
+
+                // If the document exists in docTitleWeights
+                if (docTitleWeights.containsKey(docID)) {
+                    docTitleWeights.get(docID).add(
+                            (raw_tf > 0 ? 1 + Math.log(raw_tf) : 0) * Math.log(collectionSize / termDocFreq));
+                }
+                // If the document does not exist in docTitleWeights
+                else {
+                    docTitleWeights.put(docID, new ArrayList<Double>(
+                            Arrays.asList(
+                                    (raw_tf > 0 ? 1 + Math.log(raw_tf) : 0) * Math.log(collectionSize / termDocFreq))));
+                }
+            });
+        });
+
+        Set<Map.Entry<String, TreeMap<Integer, Integer>>> termAbstractFreqEntry = this.termAbstractFreq.entrySet();
+        termAbstractFreqEntry.forEach(term -> {
+            // Get the document term frequency from the docID TreeMap size
+            int termDocFreq = term.getValue().size();
+
+            // For iterating doc level
+            Set<Map.Entry<Integer, Integer>> docEntry = term.getValue().entrySet();
+            docEntry.forEach(doc -> {
+                // Get the key which is docID
+                int docID = doc.getKey();
+                // Get the value which is the term frequency of the document
+                int raw_tf = doc.getValue();
+
+                // If the document exists in docTitleWeights
+                if (docAbstractWeights.containsKey(docID)) {
+                    docAbstractWeights.get(docID).add(
+                            (raw_tf > 0 ? 1 + Math.log(raw_tf) : 0) * Math.log(collectionSize / termDocFreq));
+                }
+                // If the document does not exist in docTitleWeights
+                else {
+                    docAbstractWeights.put(docID, new ArrayList<Double>(
+                            Arrays.asList(
+                                    (raw_tf > 0 ? 1 + Math.log(raw_tf) : 0) * Math.log(collectionSize / termDocFreq))));
+                }
+            });
+        });
     }
 
     /*
      *
      * Calculate and store Cosine Similarity Scores for each
-     * document for both title and abstract
+     * document for both title and abstract then calculate final
+     * Cosine Similarity Scores for each document (Can do it in one method?)
      *
      */
 
-    /*
-     *
-     * Calculate final Cosine Similarity Scores for each
-     * document (Can do it in one method?)
-     *
-     */
+    void calcCSS(String query, float boost_a, float boost_b) {
 
-    void calcCSS() {
+        /*
+         * wordPattern specifies pattern for words using a regular expression
+         * wordMatcher finds words by spotting word patterns with input
+         * 
+         * Process the query by extracting words using the wordPattern
+         */
+        Pattern wordPattern = Pattern.compile("[a-zA-Z]+");
+        Matcher wordMatcher = wordPattern.matcher(query);
+
+        // Will store a cleaner version of query into String ArrayList
+        ArrayList<String> cleanQuery = new ArrayList<String>();
+
+        while (wordMatcher.find()) {
+            // Extract and convert the word to lowercase
+            String word = query.substring(wordMatcher.start(), wordMatcher.end());
+            cleanQuery.add(word.toLowerCase());
+        } // while - wordMatcher
+
+        // TreeMap<Term, Raw TF>
+        TreeMap<String, Integer> termQueryFreq = new TreeMap<String, Integer>();
+
+        /*
+         *
+         *
+         * To do: Don't forget to put stemmer for query.
+         *
+         */
+
+        // Get the terms and their frequencies from cleanQuery
+        for (String term : cleanQuery) {
+            if (termQueryFreq.containsKey(term)) {
+                termQueryFreq.replace(term, termQueryFreq.get(term) + 1);
+            } else {
+                termQueryFreq.put(term, 1);
+            }
+        }
+
+        int collectionSize = this.documents.size();
+
+        // Get query weights for Title and Abstract
+        ArrayList<Double> queryTitleWeightVector = new ArrayList<Double>();
+        ArrayList<Double> queryAbstractWeightVector = new ArrayList<Double>();
+        Set<Map.Entry<String, Integer>> termQueryFreqEntry = termQueryFreq.entrySet();
+        termQueryFreqEntry.forEach(term -> {
+            int raw_tf = term.getValue();
+            int termDocTitleFreq = this.termTitleFreq.get(term.getKey()).size();
+            int termDocAbstractFreq = this.termAbstractFreq.get(term.getKey()).size();
+
+            queryTitleWeightVector
+                    .add((raw_tf > 0 ? 1 + Math.log(raw_tf) : 0) * Math.log(collectionSize / termDocTitleFreq));
+            queryAbstractWeightVector
+                    .add((raw_tf > 0 ? 1 + Math.log(raw_tf) : 0) * Math.log(collectionSize / termDocAbstractFreq));
+        });
+
+        /*
+         *
+         * To do: We need to get terms in the document that are in the queue
+         * to store into an ArrayList which could then be iterated simultaneously.
+         * i is the term where V is the intersection of terms in q and d.
+         *
+         */
 
     }
 
@@ -263,6 +374,30 @@ public class VectorSpaceModelIR {
      * HELPER METHODS
      *
      */
+
+    double SumTFXIDF(ArrayList<Double> vector) {
+        double sum = 0;
+
+        for (double value : vector) {
+            sum += value;
+        }
+
+        return sum;
+    }
+
+    double SumSquaredTFXIDF(ArrayList<Double> vector) {
+        double sum = 0;
+
+        for (double value : vector) {
+            sum += value * value;
+        }
+
+        return sum;
+    }
+
+    double NormalizeVector(ArrayList<Double> vector) {
+        return Math.sqrt(SumSquaredTFXIDF(vector));
+    }
 
     /*
      *
@@ -300,102 +435,6 @@ public class VectorSpaceModelIR {
         if (error == 1) {
             System.exit(1);
         }
-
-        /*
-         * Extract input file name from command line arguments
-         * This is the name of the file from the Gutenberg corpus
-         */
-        String inputFileDirName = args[0];
-        System.out.println("\nInput files directory path name is: " + inputFileDirName);
-
-        // br for efficiently reading characters from an input stream
-        BufferedReader br = null;
-
-        /*
-         * wordPattern specifies pattern for words using a regular expression
-         * wordMatcher finds words by spotting word patterns with input
-         */
-        Pattern wordPattern = Pattern.compile("[a-zA-Z]+");
-        Matcher wordMatcher;
-
-        /*
-         * line - a line read from file
-         * word - an extracted word from a line
-         */
-        String line, word;
-
-        // Initialize new Positional Index
-        PositionalIndex positionalIndex = new PositionalIndex();
-
-        System.out.println("\nBuilding Positional Index...");
-
-        // Process one file at a time
-        for (int index = 0; index < fileCount; index++) {
-            System.out.println("Processing: " + inputFileNames.get(index));
-
-            // Keep track of document position.
-            int docPosition = 0;
-
-            /*
-             * Keep track of Doc ID for assignment for building the positional
-             * index data. They start at 1.
-             */
-            int docID = 1 + index;
-
-            /*
-             * Open the input file, read one line at a time, extract words
-             * in the line, extract characters in a word, write words and
-             * character counts to disk files
-             */
-            try {
-                /*
-                 * Get a BufferedReader object, which encapsulates
-                 * access to a (disk) file
-                 */
-                br = new BufferedReader(new FileReader(inputFileNames.get(index)));
-
-                /*
-                 * As long as we have more lines to process, read a line
-                 * the following line is doing two things: makes an assignment
-                 * and serves as a boolean expression for while test
-                 */
-                while ((line = br.readLine()) != null) {
-                    // process the line by extracting words using the wordPattern
-                    wordMatcher = wordPattern.matcher(line);
-
-                    // Will store a cleaner version of line into String ArrayList
-                    ArrayList<String> cleanLine = new ArrayList<String>();
-
-                    // Process one word at a time
-                    while (wordMatcher.find()) {
-
-                        // Extract and convert the word to lowercase
-                        word = line.substring(wordMatcher.start(), wordMatcher.end());
-                        cleanLine.add(word.toLowerCase());
-                    } // while - wordMatcher
-
-                    /*
-                     * Handles cases if the line is empty
-                     *
-                     * Without this, it will count empty strings
-                     * because cleanLine is originally empty.
-                     */
-                    if (!cleanLine.isEmpty()) {
-                        for (String term : cleanLine) {
-                            positionalIndex.updatePositionalIndex(term, docID, ++docPosition);
-                        }
-                    }
-                } // while - Line
-            } // try
-            catch (IOException ex) {
-                System.err.println("File " + inputFileNames.get(index) + " not found. Program terminated.\n");
-                System.exit(1);
-            }
-        } // for -- Process one file at a time
-
-        System.out.println("\nPositional Index Built.");
-        System.out.println("\nNow performing proximity search...");
-        positionalIndex.proximitySearch(args[2].toLowerCase(), args[3].toLowerCase(), Integer.parseInt(args[4]));
 
         // End Process Timer
         long endTime = System.nanoTime();
