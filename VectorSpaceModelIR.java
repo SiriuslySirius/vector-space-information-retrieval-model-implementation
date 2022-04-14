@@ -4,7 +4,7 @@
 
     Authors: Abelson Abueg
     Date Created: 4 Apr 2022
-    Last Updated: 4 Apr 2022
+    Last Updated: 13 Apr 2022
 */
 
 // Java
@@ -17,7 +17,7 @@ import java.io.UnsupportedEncodingException;
 import java.io.IOException;
 import java.util.regex.Pattern;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
@@ -42,14 +42,9 @@ public class VectorSpaceModelIR {
     // TreeMap<Term, TreeMap<DocID, Abstract Term Freq>>
     private TreeMap<String, TreeMap<Integer, Integer>> termAbstractFreq;
 
-
     // TreeMap<DocID, TreeMap<Term, TF-IDF Weight>>
     private TreeMap<Integer, TreeMap<String, Double>> docTitleWeights;
     private TreeMap<Integer, TreeMap<String, Double>> docAbstractWeights;
-
-    // TreeMap<DocID, Cosine Similarity Scores>
-    private TreeMap<Integer, Double> cosineSimilarityScoresTitle;
-    private TreeMap<Integer, Double> cosineSimilarityScoresAbstract;
 
     // TreeMap<Final Cosine Similarity Scores, DocID>
     private TreeMap<Double, Integer> finalCosineSimilarityScores;
@@ -65,9 +60,7 @@ public class VectorSpaceModelIR {
         this.docTitleWeights = new TreeMap<Integer, TreeMap<String, Double>>();
         this.docAbstractWeights = new TreeMap<Integer, TreeMap<String, Double>>();
 
-        // For storing Cosine Similarity Scores
-        this.cosineSimilarityScoresTitle = new TreeMap<Integer, Double>();
-        this.cosineSimilarityScoresAbstract = new TreeMap<Integer, Double>();
+        // For storing final Cosine Similarity Scores
         this.finalCosineSimilarityScores = new TreeMap<Double, Integer>();
     }
 
@@ -258,17 +251,15 @@ public class VectorSpaceModelIR {
                 // If the document exists in docTitleWeights
                 if (docTitleWeights.containsKey(docID)) {
                     docTitleWeights.get(docID).put(
-                        term.getKey(),
-                        (raw_tf > 0 ? 1 + Math.log(raw_tf) : 0) * Math.log(collectionSize / termDocFreq)
-                    );
+                            term.getKey(),
+                            (raw_tf > 0 ? 1 + Math.log(raw_tf) : 0) * Math.log(collectionSize / termDocFreq));
                 }
                 // If the document does not exist in docTitleWeights
                 else {
                     TreeMap<String, Double> newTree = new TreeMap<String, Double>();
                     newTree.put(
-                        term.getKey(),
-                        ((raw_tf > 0 ? 1 + Math.log(raw_tf) : 0) * Math.log(collectionSize / termDocFreq))
-                    );
+                            term.getKey(),
+                            ((raw_tf > 0 ? 1 + Math.log(raw_tf) : 0) * Math.log(collectionSize / termDocFreq)));
                     docTitleWeights.put(docID, newTree);
                 }
             });
@@ -291,16 +282,14 @@ public class VectorSpaceModelIR {
                 if (docAbstractWeights.containsKey(docID)) {
                     docAbstractWeights.get(docID).put(
                             term.getKey(),
-                            (raw_tf > 0 ? 1 + Math.log(raw_tf) : 0) * Math.log(collectionSize / termDocFreq)
-                    );
+                            (raw_tf > 0 ? 1 + Math.log(raw_tf) : 0) * Math.log(collectionSize / termDocFreq));
                 }
                 // If the document does not exist in docTitleWeights
                 else {
                     TreeMap<String, Double> newTree = new TreeMap<String, Double>();
                     newTree.put(
-                        term.getKey(),
-                        ((raw_tf > 0 ? 1 + Math.log(raw_tf) : 0) * Math.log(collectionSize / termDocFreq))
-                    );
+                            term.getKey(),
+                            ((raw_tf > 0 ? 1 + Math.log(raw_tf) : 0) * Math.log(collectionSize / termDocFreq)));
                     docAbstractWeights.put(docID, newTree);
                 }
             });
@@ -367,23 +356,68 @@ public class VectorSpaceModelIR {
                     .add((raw_tf > 0 ? 1 + Math.log(raw_tf) : 0) * Math.log(collectionSize / termDocAbstractFreq));
         });
 
-        /*
-         *
-         * To do: We need to get terms in the document that are in the queue
-         * to store into an ArrayList which could then be iterated simultaneously.
-         * i is the term where V is the intersection of terms in q and d.
-         * 
-         * Loop through the docs ArrayList
-         * ArrayList<ArrayList<Doubles>>
-         *
-         */
+        // For iterating through documents for accessing multiple HashTrees
+        Set<Map.Entry<Integer, String>> docs = this.documents.entrySet();
 
-         /*
-         * Get the intersection terms from the document weights for both
-         * the title and abstract for Cosine Similarity.
-         */
+        // For storing intersection weight vectors for Title and Abstract from
+        // termQueryFreq
+        TreeMap<Integer, ArrayList<Double>> docsTitleWeightVector = new TreeMap<Integer, ArrayList<Double>>();
+        TreeMap<Integer, ArrayList<Double>> docsAbstractWeightVector = new TreeMap<Integer, ArrayList<Double>>();
 
+        // Get the intersection weight vectors for Title and Abstract from termQueryFreq
+        docs.forEach(doc -> {
+            ArrayList<Double> docTitleWeightVector = new ArrayList<Double>();
+            ArrayList<Double> docAbstractWeightVector = new ArrayList<Double>();
+            int docID = doc.getKey();
+            termQueryFreqEntry.forEach(term -> {
+                String raw_term = term.getKey();
+                if (docTitleWeights.get(docID).containsKey(raw_term)) {
+                    docTitleWeightVector.add(docTitleWeights.get(docID).get(raw_term));
+                }
+                if (docAbstractWeights.get(docID).containsKey(raw_term)) {
+                    docAbstractWeightVector.add(docAbstractWeights.get(docID).get(raw_term));
+                }
+            });
+            docsTitleWeightVector.put(docID, docTitleWeightVector);
+            docsAbstractWeightVector.put(docID, docAbstractWeightVector);
+        });
 
+        docs.forEach(doc -> {
+            int docID = doc.getKey();
+            finalCosineSimilarityScores.put(
+                    ((boost_a *
+                            ((ProdSumTFXIDF(queryTitleWeightVector, docsTitleWeightVector.get(docID)))
+                                    / ((Math.sqrt(SumSquaredTFXIDF(queryTitleWeightVector)))
+                                            * (Math.sqrt(SumSquaredTFXIDF(docsTitleWeightVector.get(docID)))))))
+                            +
+                            (boost_b *
+                                    (ProdSumTFXIDF(queryAbstractWeightVector, docsAbstractWeightVector.get(docID)))
+                                    / ((Math.sqrt(SumSquaredTFXIDF(queryAbstractWeightVector)))
+                                            * (Math.sqrt(SumSquaredTFXIDF(docsAbstractWeightVector.get(docID))))))),
+                    docID);
+        });
+
+    }
+
+    /*
+     * Prints out top k results
+     */
+    void displayTopKDocs(int k) {
+        TreeMap<Double, Integer> topKResults = this.finalCosineSimilarityScores.entrySet().stream()
+                .limit(k)
+                .collect(TreeMap::new, (m, e) -> m.put(e.getKey(), e.getValue()),
+                        Map::putAll);
+
+        System.out.println("Your top " + k + " results:\n");
+        System.out.format("%7s %30s", "DocID", "Cosine Similarity Score");
+
+        int rank = 1;
+        Set<Map.Entry<Double, Integer>> topKResultsEntry = topKResults.entrySet();
+
+        topKResultsEntry.forEach(result -> {
+            System.out.format("%7d %30d", result.getValue(), result.getKey());
+            System.out.println();
+        });
     }
 
     /*
@@ -392,11 +426,13 @@ public class VectorSpaceModelIR {
      *
      */
 
-    double SumTFXIDF(ArrayList<Double> vector) {
+    double ProdSumTFXIDF(ArrayList<Double> vector_a, ArrayList<Double> vector_b) {
         double sum = 0;
+        Iterator<Double> iter_a = vector_a.iterator();
+        Iterator<Double> iter_b = vector_b.iterator();
 
-        for (double value : vector) {
-            sum += value;
+        while (iter_a.hasNext() && iter_b.hasNext()) {
+            sum += iter_a.next() * iter_b.next();
         }
 
         return sum;
