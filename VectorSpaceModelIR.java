@@ -17,8 +17,10 @@ import java.io.UnsupportedEncodingException;
 import java.io.IOException;
 import java.util.regex.Pattern;
 import java.util.ArrayList;
+import java.util.InputMismatchException;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Scanner;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.regex.Matcher;
@@ -49,6 +51,9 @@ public class VectorSpaceModelIR {
     // TreeMap<Final Cosine Similarity Scores, DocID>
     private TreeMap<Double, Integer> finalCosineSimilarityScores;
 
+    // TreeMap<QueryID, Query>
+    private TreeMap<String, String> queryList;
+
     // Default Constructor; it's all you really need.
     public VectorSpaceModelIR() {
         // For storing data
@@ -62,18 +67,18 @@ public class VectorSpaceModelIR {
 
         // For storing final Cosine Similarity Scores
         this.finalCosineSimilarityScores = new TreeMap<Double, Integer>();
+
+        // For storing QueryID and the Query
+        this.queryList = new TreeMap<String, String>();
     }
 
     /*
      * 
      * Read the document and keep track of docID-Titles and
-     * term and document frequencies.
+     * term and document frequencies for Title and Abstract
      * 
      */
     void BuildData(String inputPath) {
-
-        System.out.println("\nInput file path name is: " + inputPath);
-
         // br for efficiently reading characters from an input stream
         BufferedReader br = null;
 
@@ -103,24 +108,21 @@ public class VectorSpaceModelIR {
 
             line = br.readLine();
             while (line != null) {
-
-                // process the line by extracting words using the wordPattern
-                wordMatcher = wordPattern.matcher(line);
-
                 // Will store a cleaner version of line into String ArrayList
                 ArrayList<String> cleanLine = new ArrayList<String>();
 
                 if (line.contains(".I")) {
                     docID = Integer.parseInt(line.replaceAll("[^0-9]", ""));
-
+                    line = br.readLine();
                 } else if (line.contains(".T")) {
                     String title = "";
                     while ((line = br.readLine()).compareTo(".A") != 0) {
-                        title = title + line + " ";
+                        wordMatcher = wordPattern.matcher(line);
                         // Process one word at a time
                         while (wordMatcher.find()) {
                             // Extract and convert the word to lowercase
                             word = line.substring(wordMatcher.start(), wordMatcher.end());
+                            title = title + " " + word;
                             cleanLine.add(word.toLowerCase());
                         } // while - wordMatcher
 
@@ -158,8 +160,7 @@ public class VectorSpaceModelIR {
                     }
 
                     // Add the new document into the documents TreeMap
-                    title.trim();
-                    documents.put(docID, title);
+                    documents.put(docID, title.trim());
 
                 } else if (line.contains(".A")) {
                     while ((line = br.readLine()).compareTo(".B") != 0) {
@@ -172,48 +173,52 @@ public class VectorSpaceModelIR {
                     }
 
                 } else if (line.contains(".W")) {
-                    while ((line = br.readLine()).compareTo(".I") != 0) {
-                        while ((line = br.readLine()).compareTo(".A") != 0) {
-                            // Process one word at a time
-                            while (wordMatcher.find()) {
-                                // Extract and convert the word to lowercase
-                                word = line.substring(wordMatcher.start(), wordMatcher.end());
-                                cleanLine.add(word.toLowerCase());
-                            } // while - wordMatcher
+                    line = br.readLine();
+                    while (!line.contains(".I")) {
+                        wordMatcher = wordPattern.matcher(line);
+                        // Process one word at a time
+                        while (wordMatcher.find()) {
+                            // Extract and convert the word to lowercase
+                            word = line.substring(wordMatcher.start(), wordMatcher.end());
+                            cleanLine.add(word.toLowerCase());
+                        } // while - wordMatcher
 
-                            /*
-                             * Handles cases if the line is empty
-                             *
-                             * Without this, it will count empty strings
-                             * because cleanLine is originally empty.
-                             */
-                            if (!cleanLine.isEmpty()) {
-                                for (String term : cleanLine) {
-                                    String stemmedTerm = stemmer.stem(term);
-                                    // If the term exists in the title term frequency
-                                    if (this.termAbstractFreq.containsKey(stemmedTerm)) {
-                                        // If the document exists in the title term frequency
-                                        if (this.termAbstractFreq.get(stemmedTerm).containsKey(docID)) {
-                                            // Update the term count from the document.
-                                            this.termAbstractFreq.get(stemmedTerm).replace(docID,
-                                                    this.termAbstractFreq.get(stemmedTerm).get(docID) + 1);
-                                        } else {
-                                            // Add a new document term frequency
-                                            this.termAbstractFreq.get(stemmedTerm).put(docID, 1);
-                                        }
-                                        // If the term doesn't exist.
+                        /*
+                         * Handles cases if the line is empty
+                         *
+                         * Without this, it will count empty strings
+                         * because cleanLine is originally empty.
+                         */
+                        if (!cleanLine.isEmpty()) {
+                            for (String term : cleanLine) {
+                                String stemmedTerm = stemmer.stem(term);
+                                // If the term exists in the title term frequency
+                                if (this.termAbstractFreq.containsKey(stemmedTerm)) {
+                                    // If the document exists in the title term frequency
+                                    if (this.termAbstractFreq.get(stemmedTerm).containsKey(docID)) {
+                                        // Update the term count from the document.
+                                        this.termAbstractFreq.get(stemmedTerm).replace(docID,
+                                                this.termAbstractFreq.get(stemmedTerm).get(docID) + 1);
                                     } else {
-                                        // Create a new document term frequency holder
-                                        TreeMap<Integer, Integer> newTermDocFreqHolder = new TreeMap<>();
-                                        // Put in the new document term frequency for DocID
-                                        newTermDocFreqHolder.put(docID, 1);
-                                        // Insert a new term into termTitleFreq
-                                        termAbstractFreq.put(stemmedTerm, newTermDocFreqHolder);
+                                        // Add a new document term frequency
+                                        this.termAbstractFreq.get(stemmedTerm).put(docID, 1);
                                     }
+                                    // If the term doesn't exist.
+                                } else {
+                                    // Create a new document term frequency holder
+                                    TreeMap<Integer, Integer> newTermDocFreqHolder = new TreeMap<>();
+                                    // Put in the new document term frequency for DocID
+                                    newTermDocFreqHolder.put(docID, 1);
+                                    // Insert a new term into termTitleFreq
+                                    termAbstractFreq.put(stemmedTerm, newTermDocFreqHolder);
                                 }
                             }
                         }
 
+                        line = br.readLine();
+                        if (line == null) {
+                            break;
+                        }
                     }
 
                 }
@@ -222,16 +227,15 @@ public class VectorSpaceModelIR {
             System.err.println("File " + inputPath + " not found. Program terminated.\n");
             System.exit(1);
         }
-
     }
 
     /*
      *
      * Calculate and store TF-IDF weights for each term in each
-     * document for both title and abstract
+     * document for both Title and Abstract
      * 
      */
-    void calcTFXIDF() {
+    void CalcTFXIDF() {
         int collectionSize = this.documents.size();
 
         // For iterating term level of termTitleFreqEntry
@@ -239,6 +243,7 @@ public class VectorSpaceModelIR {
         termTitleFreqEntry.forEach(term -> {
             // Get the document term frequency from the docID TreeMap size
             int termDocFreq = term.getValue().size();
+            String termKey = term.getKey();
 
             // For iterating doc level
             Set<Map.Entry<Integer, Integer>> docEntry = term.getValue().entrySet();
@@ -251,15 +256,15 @@ public class VectorSpaceModelIR {
                 // If the document exists in docTitleWeights
                 if (docTitleWeights.containsKey(docID)) {
                     docTitleWeights.get(docID).put(
-                            term.getKey(),
-                            (raw_tf > 0 ? 1 + Math.log(raw_tf) : 0) * Math.log(collectionSize / termDocFreq));
+                            termKey,
+                            (raw_tf > 0 ? 1 + Math.log10(raw_tf) : 0) * Math.log10(collectionSize / termDocFreq));
                 }
                 // If the document does not exist in docTitleWeights
                 else {
                     TreeMap<String, Double> newTree = new TreeMap<String, Double>();
                     newTree.put(
-                            term.getKey(),
-                            ((raw_tf > 0 ? 1 + Math.log(raw_tf) : 0) * Math.log(collectionSize / termDocFreq)));
+                            termKey,
+                            ((raw_tf > 0 ? 1 + Math.log10(raw_tf) : 0) * Math.log10(collectionSize / termDocFreq)));
                     docTitleWeights.put(docID, newTree);
                 }
             });
@@ -282,14 +287,14 @@ public class VectorSpaceModelIR {
                 if (docAbstractWeights.containsKey(docID)) {
                     docAbstractWeights.get(docID).put(
                             term.getKey(),
-                            (raw_tf > 0 ? 1 + Math.log(raw_tf) : 0) * Math.log(collectionSize / termDocFreq));
+                            (raw_tf > 0 ? 1 + Math.log10(raw_tf) : 0) * Math.log10(collectionSize / termDocFreq));
                 }
                 // If the document does not exist in docTitleWeights
                 else {
                     TreeMap<String, Double> newTree = new TreeMap<String, Double>();
                     newTree.put(
                             term.getKey(),
-                            ((raw_tf > 0 ? 1 + Math.log(raw_tf) : 0) * Math.log(collectionSize / termDocFreq)));
+                            ((raw_tf > 0 ? 1 + Math.log10(raw_tf) : 0) * Math.log10(collectionSize / termDocFreq)));
                     docAbstractWeights.put(docID, newTree);
                 }
             });
@@ -299,12 +304,12 @@ public class VectorSpaceModelIR {
     /*
      *
      * Calculate and store Cosine Similarity Scores for each
-     * document for both title and abstract then calculate final
-     * Cosine Similarity Scores for each document (Can do it in one method?)
+     * document for both title and abstract then Calculate final
+     * Cosine Similarity Scores for each document.
      *
      */
 
-    void calcCSS(String query, float boost_a, float boost_b) {
+    void CalcCSS(String query, float boost_a, float boost_b) {
 
         /*
          * wordPattern specifies pattern for words using a regular expression
@@ -341,19 +346,38 @@ public class VectorSpaceModelIR {
 
         int collectionSize = this.documents.size();
 
+        /*
+         *
+         * TO-DO: Get intersection prior to making query vectors.
+         *
+         */
+
         // Get query weights for Title and Abstract
         ArrayList<Double> queryTitleWeightVector = new ArrayList<Double>();
         ArrayList<Double> queryAbstractWeightVector = new ArrayList<Double>();
         Set<Map.Entry<String, Integer>> termQueryFreqEntry = termQueryFreq.entrySet();
         termQueryFreqEntry.forEach(term -> {
             int raw_tf = term.getValue();
-            int termDocTitleFreq = this.termTitleFreq.get(term.getKey()).size();
-            int termDocAbstractFreq = this.termAbstractFreq.get(term.getKey()).size();
+            String termKey = term.getKey();
+            int termDocTitleFreq, termDocAbstractFreq;
+            if (this.termTitleFreq.get(termKey) == null) {
+                termDocTitleFreq = 0;
+            } else {
+                termDocTitleFreq = this.termTitleFreq.get(term.getKey()).size();
+            }
+
+            if (this.termAbstractFreq.get(termKey) == null) {
+                termDocAbstractFreq = 0;
+            } else {
+                termDocAbstractFreq = this.termAbstractFreq.get(term.getKey()).size();
+            }
 
             queryTitleWeightVector
-                    .add((raw_tf > 0 ? 1 + Math.log(raw_tf) : 0) * Math.log(collectionSize / termDocTitleFreq));
+                    .add(termDocTitleFreq == 0 ? 0
+                            : (raw_tf > 0 ? 1 + Math.log(raw_tf) : 0) * Math.log(collectionSize / termDocTitleFreq));
             queryAbstractWeightVector
-                    .add((raw_tf > 0 ? 1 + Math.log(raw_tf) : 0) * Math.log(collectionSize / termDocAbstractFreq));
+                    .add(termDocAbstractFreq == 0 ? 0
+                            : (raw_tf > 0 ? 1 + Math.log(raw_tf) : 0) * Math.log(collectionSize / termDocAbstractFreq));
         });
 
         // For iterating through documents for accessing multiple HashTrees
@@ -382,6 +406,7 @@ public class VectorSpaceModelIR {
             docsAbstractWeightVector.put(docID, docAbstractWeightVector);
         });
 
+        // Get the Cosine Similarity Scores
         docs.forEach(doc -> {
             int docID = doc.getKey();
             finalCosineSimilarityScores.put(
@@ -402,22 +427,77 @@ public class VectorSpaceModelIR {
     /*
      * Prints out top k results
      */
-    void displayTopKDocs(int k) {
+    void DisplayTopKDocs(int k) {
         TreeMap<Double, Integer> topKResults = this.finalCosineSimilarityScores.entrySet().stream()
                 .limit(k)
                 .collect(TreeMap::new, (m, e) -> m.put(e.getKey(), e.getValue()),
                         Map::putAll);
 
         System.out.println("Your top " + k + " results:\n");
-        System.out.format("%7s %30s", "DocID", "Cosine Similarity Score");
+        System.out.format("%7s, %7s %30s", "Rank", "DocID", "Cosine Similarity Score");
 
-        int rank = 1;
         Set<Map.Entry<Double, Integer>> topKResultsEntry = topKResults.entrySet();
 
-        topKResultsEntry.forEach(result -> {
-            System.out.format("%7d %30d", result.getValue(), result.getKey());
+        int rank = 1;
+        for (Map.Entry<Double, Integer> result : topKResultsEntry) {
+            System.out.format("%7d %7d %30d", rank, result.getValue(), result.getKey());
             System.out.println();
-        });
+            rank++;
+        }
+    }
+
+    void BuildQueryList(String queryPath) {
+        // br for efficiently reading characters from an input stream
+        BufferedReader br = null;
+
+        /*
+         * wordPattern specifies pattern for words using a regular expression
+         * wordMatcher finds words by spotting word patterns with input
+         */
+        Pattern wordPattern = Pattern.compile("[a-zA-Z]+");
+        Matcher wordMatcher;
+
+        try {
+            br = new BufferedReader(new FileReader(queryPath));
+
+            String line = "";
+            String word = "";
+
+            line = br.readLine();
+            while (line != null) {
+                // For storing into queryList
+                String query = "";
+                String queryID = "";
+                if (line.contains(".I")) {
+                    queryID = line.replaceAll("[^0-9]", "");
+                    line = br.readLine();
+                }
+                if (line.contains(".W")) {
+                    line = br.readLine();
+                    while (line != null && !line.contains(".I")) {
+                        wordMatcher = wordPattern.matcher(line);
+                        // Process one word at a time
+                        while (wordMatcher.find()) {
+                            // Extract and convert the word to lowercase
+                            word = line.substring(wordMatcher.start(), wordMatcher.end());
+                            query = query + " " + word;
+                        } // while - wordMatcher
+                        line = br.readLine();
+                    }
+                }
+                queryList.put(queryID, query.trim());
+            }
+
+            br.close();
+
+        } catch (IOException ex) {
+            System.err.println("File " + queryPath + " not found. Program terminated.\n");
+            System.exit(1);
+        }
+    }
+
+    String GetQuery(String ID) {
+        return this.queryList.get(ID);
     }
 
     /*
@@ -452,46 +532,200 @@ public class VectorSpaceModelIR {
         return Math.sqrt(SumSquaredTFXIDF(vector));
     }
 
+    static double DeltaNanoToSec(long a, long b) {
+        return ((double) (a - b) / 1_000_000_000);
+    }
+
+    static boolean ValidateYN(String yn) {
+        return yn.compareTo("n") == 0 || yn.compareTo("y") == 0;
+    }
+
+    static boolean ValidateQueryID(String queryID) {
+        Pattern three_digit = Pattern.compile("\\d{3}");
+        Matcher matcher = three_digit.matcher(queryID);
+        return matcher.find() && queryID.length() == 3;
+    }
+
     /*
      *
      * MAIN METHOD
      *
      */
     public static void main(String[] args) {
-        long startTime = System.nanoTime();
         int error = 0;
 
         /*
          * Did the user provide correct number of command line arguments?
          * If not, print message and exit
          */
-        if (args.length != 5) {
-            System.err.println("\nNumber of command line arguments must be 5");
+
+        if (args.length != 3) {
+            System.err.println("\nNumber of command line arguments must be 2");
             System.err.println("You have given " + args.length + " command line arguments");
             System.err.println("Incorrect usage. Program terminated");
             System.err.println(
-                    "Correct usage: java PositionalIndex <path-to-input-files> <path-to-output-result-files> <first-word> <second-word> <int-distance-between-words>");
+                    "Correct usage: java VectorSpaceModelIR <cran.all.1400-filepath> <cran.qry-filepath> <output-directory-path>");
             error = 1;
         }
-        if (!(args[2] != null && args[2].matches("^[a-zA-Z]*$"))) {
-            System.err.println("Error: <first-word> argument must only have alphabet letters in the input.");
+
+        File corpus = new File(args[0]);
+        File query = new File(args[1]);
+        File outputPath = new File(args[2]);
+
+        if (!(corpus.exists() && corpus.isFile() && corpus.getName().compareTo("cran.all.1400") == 0)) {
+            System.err.println(
+                    "Error: <cran.all.1400-filepath> is not a filepath to the cran.all.1400 corpus file or the file does not exists.");
             error = 1;
         }
-        if (!(args[3] != null && args[3].matches("^[a-zA-Z]*$"))) {
-            System.err.println("Error: <second-word> argument must only have alphabet letters in the input.");
+        if (!(query.exists() && query.isFile() && query.getName().compareTo("cran.qry") == 0)) {
+            System.err.println(
+                    "Error: <cran.qry-filepath> is not a filepath to the cran.qry file or the file does not exists.");
             error = 1;
         }
-        if (Integer.parseInt(args[4]) < 1) {
-            System.err.println("Error: <int-distance-between-words> argument must be greater than 0.");
+        if (!(outputPath.exists() && outputPath.isDirectory())) {
+            System.err.println("Error: <output-directory-path> is not a directory or the directory does not exists.");
             error = 1;
         }
         if (error == 1) {
             System.exit(1);
         }
 
-        // End Process Timer
-        long endTime = System.nanoTime();
-        System.out.println("\nProcess Completed in " +
-                (double) (endTime - startTime) / 1_000_000_000 + " seconds.\n");
+        System.out.println("Please wait, now processing the cran.all.1400 corpus and cran.qry file...\n");
+        long startProcessTime = System.nanoTime();
+        VectorSpaceModelIR data = new VectorSpaceModelIR();
+
+        System.out.println("Now building collection title and abstract indexes...");
+        data.BuildData(corpus.getPath());
+        long checkpoint_BuildData = System.nanoTime();
+        System.out.println("Collection title and abstract indexes built in "
+                + DeltaNanoToSec(checkpoint_BuildData, startProcessTime) + " seconds\n");
+
+        System.out.println("Now calculating TF-IDF of terms from the title and abstract indexes...");
+        data.CalcTFXIDF();
+        long checkpoint_CalcTFXIDF = System.nanoTime();
+        System.out.println("Collection title and abstract term TF-IDF calculations finished in "
+                + DeltaNanoToSec(checkpoint_CalcTFXIDF, checkpoint_BuildData) + " seconds\n");
+
+        System.out.println("Now building Query ID index from cran.qry...");
+        data.BuildQueryList(query.getPath());
+        long checkpoint_BuildQueryList = System.nanoTime();
+        System.out.println("Query ID index built in "
+                + DeltaNanoToSec(checkpoint_BuildQueryList, checkpoint_CalcTFXIDF) + " seconds\n");
+
+        System.out.println("Now you can start searching the corpus!\n");
+
+        Scanner input = new Scanner(System.in);
+        int count = 1;
+        String response, queryID;
+        float boostTitle, boostAbstract;
+        boostTitle = boostAbstract = 0;
+        int numResultsToDisplay = -1;
+
+        while (true) {
+            // Asking to search the corpus or search corpus again
+            do {
+                switch (count) {
+                    case 1:
+                        System.out.println("Would you like to search the corpus? (Y/N)");
+                        break;
+                    default:
+                        System.out.println("Would you like continue searching the corpus? (Y/N)");
+                        break;
+                }
+
+                System.out.print("Input Y/N: ");
+                response = input.nextLine().toLowerCase().trim();
+                System.out.println();
+
+                switch (response) {
+                    case "n":
+                        System.out.println("Closing program.");
+                        input.close();
+                        System.exit(0);
+                        break;
+                    case "y":
+                        break;
+                    default:
+                        System.out.println("Invalid input. Please try again.\n");
+                        break;
+                }
+            } while (!ValidateYN(response));
+
+            // Asking for the query ID
+            do {
+                System.out.println("Input the 3-digit query ID from cran.qry.");
+                System.out.print("Input 3-digit query ID (###): ");
+                queryID = input.nextLine().trim();
+                System.out.println();
+
+                if (!ValidateQueryID(queryID)) {
+                    System.out.println("Invalid input, try again.\n");
+                } else if (data.GetQuery(queryID) == null) {
+                    System.out.println("Query ID does not exist, try again.\n");
+                    queryID = "";
+                }
+            } while (!ValidateQueryID(queryID));
+
+            // Asking for boost values.
+            do {
+                System.out.println("Input two floating point values for title and abstract, respectively.");
+                System.out.println("NOTE: The sum of both values must equal 1.");
+
+                try {
+                    System.out.print("Input title boost: ");
+                    boostTitle = Float.parseFloat(input.nextLine());
+
+                    System.out.print("Input abstract boost: ");
+                    boostAbstract = Float.parseFloat(input.nextLine());
+                    System.out.println();
+                } catch (NumberFormatException e) {
+                    System.out.println("Invalid input, try again.\n");
+                    continue;
+                }
+
+                if (boostTitle + boostAbstract != 1) {
+                    System.out.println("Boost values don't sum to 1, try again.\n");
+                    continue;
+                }
+
+            } while (boostTitle + boostAbstract != 1);
+
+            // Asking for number of documents to display on command prompt
+            do {
+                System.out.println("Input the number of top results you wish to see.");
+                System.out.println(
+                        "NOTE: 1400 is the max, but you may not be able to see the top results in the console.");
+
+                try {
+                    System.out.print("Input # of documents to display: ");
+                    numResultsToDisplay = Integer.parseInt(input.nextLine());
+
+                } catch (NumberFormatException e) {
+                    System.out.println("Invalid input, try again.\n");
+                    continue;
+                }
+
+                if (numResultsToDisplay <= 0) {
+                    System.out.println("Value cannot be <= 0, try again.\n");
+                    continue;
+                } else if (numResultsToDisplay > 1400) {
+                    System.out.println("Value cannot be > 1400, try again.\n");
+                    continue;
+                }
+
+            } while (numResultsToDisplay <= 0 || numResultsToDisplay > 1400);
+
+            System.out.println("\nNow calculating Cosine Similarity Scoring...");
+            long startCSS = System.nanoTime();
+            data.CalcCSS(data.GetQuery(queryID), boostTitle, boostAbstract);
+            long checkpointCalcCSS = System.nanoTime();
+            System.out.println("Cosine Similarity Scoring completed in "
+                    + DeltaNanoToSec(checkpointCalcCSS, startCSS) + " seconds\n");
+
+            System.out.println("Now display top query results:");
+            data.DisplayTopKDocs(numResultsToDisplay);
+
+        }
+
     } // main()
 } // class
