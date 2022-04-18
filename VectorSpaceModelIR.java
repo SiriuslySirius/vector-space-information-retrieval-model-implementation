@@ -52,14 +52,22 @@ public class VectorSpaceModelIR {
     // TreeMap<QueryID, Query>
     private TreeMap<String, String> queryList;
 
-    // Default Lucene Stop Words
+    // Stop words from here: https://www.ranks.nl/stopwords
     private ArrayList<String> stopwords = new ArrayList<String>(Arrays.asList(
-        "a", "an", "and", "are", "as", "at", "be", "but", "by",
-        "for", "if", "in", "into", "is", "it",
-        "no", "not", "of", "on", "or", "such",
-        "that", "the", "their", "then", "there", "these",
-        "they", "this", "to", "was", "will", "with"
-    ));
+            "a", "about", "above", "after", "again", "against", "all", "am", "an", "and", "any", "are", "arent", "as",
+            "at", "be", "because", "been", "before", "being", "below", "between", "both", "but", "by", "cant", "cannot",
+            "could", "couldnt", "did", "didnt", "do", "does", "doesnt", "doing", "dont", "down", "during", "each",
+            "few", "for", "from", "further", "had", "hadnt", "has", "hasnt", "have", "havent", "having", "he", "hed",
+            "hell", "hes", "her", "here", "heres", "hers", "herself", "him", "himself", "his", "how", "hows", "i", "id",
+            "ill", "im", "ive", "if", "in", "into", "is", "isnt", "it", "its", "its", "itself", "lets", "me", "more",
+            "most", "mustnt", "my", "myself", "no", "nor", "not", "of", "off", "on", "once", "only", "or", "other",
+            "ought", "our", "ours 	ourselves", "out", "over", "own", "same", "shant", "she", "shed", "shell", "shes",
+            "should", "shouldnt", "so", "some", "such", "than", "that", "thats", "the", "their", "theirs", "them",
+            "themselves", "then", "there", "theres", "these", "they", "theyd", "theyll", "theyre", "theyve", "this",
+            "those", "through", "to", "too", "under", "until", "up", "very", "was", "wasnt", "we", "wed", "well",
+            "were", "weve", "were", "werent", "what", "whats", "when", "whens", "where", "wheres", "which", "while",
+            "who", "whos", "whom", "why", "whys", "with", "wont", "would", "wouldnt", "you", "youd", "youll", "youre",
+            "youve", "your", "yours", "yourself", "yourselves"));
 
     // Default Constructor; it's all you really need.
     public VectorSpaceModelIR() {
@@ -144,7 +152,7 @@ public class VectorSpaceModelIR {
                                 String stemmedTerm = stemmer.stem(term);
 
                                 // To avoid adding stopwords
-                                if(stopwords.contains(term)) {
+                                if (stopwords.contains(term)) {
                                     continue;
                                 }
                                 // If the term exists in the title term frequency
@@ -204,9 +212,9 @@ public class VectorSpaceModelIR {
                         if (!cleanLine.isEmpty()) {
                             for (String term : cleanLine) {
                                 String stemmedTerm = stemmer.stem(term);
-                                
+
                                 // To avoid adding stopwords.
-                                if(stopwords.contains(term)) {
+                                if (stopwords.contains(term)) {
                                     continue;
                                 }
                                 // If the term exists in the title term frequency
@@ -321,8 +329,8 @@ public class VectorSpaceModelIR {
     /*
      *
      * Calculate and store Cosine Similarity Scores for each
-     * document for both title and abstract then Calculate final
-     * Cosine Similarity Scores for each document.
+     * document for both title and abstract then calculate final
+     * Cosine Similarity Score for each document.
      *
      */
 
@@ -347,10 +355,9 @@ public class VectorSpaceModelIR {
             // Extract and convert the word to lowercase
             String word = query.substring(wordMatcher.start(), wordMatcher.end()).toLowerCase();
             // Avoid adding stopwords
-            if(stopwords.contains(word)) {
+            if (stopwords.contains(word)) {
                 continue;
-            }
-            else {
+            } else {
                 cleanQuery.add(stemmer.stem(word));
             }
         } // while - wordMatcher
@@ -386,9 +393,8 @@ public class VectorSpaceModelIR {
                 termDocTitleFreq = this.termTitleFreq.get(term.getKey()).size();
                 queryTitleWeights.put(termKey,
                         (1 + Math.log(raw_tf)) * Math.log(collectionSize / termDocTitleFreq));
-            }
-            else {
-                queryTitleWeights.put(termKey,(double) 0);
+            } else {
+                queryTitleWeights.put(termKey, (double) 0);
             }
 
             // If the term does exist in the index
@@ -396,9 +402,8 @@ public class VectorSpaceModelIR {
                 termDocAbstractFreq = this.termAbstractFreq.get(term.getKey()).size();
                 queryAbstractWeights.put(termKey,
                         (1 + Math.log(raw_tf)) * Math.log(collectionSize / termDocAbstractFreq));
-            }
-            else {
-                queryAbstractWeights.put(termKey,(double) 0);
+            } else {
+                queryAbstractWeights.put(termKey, (double) 0);
             }
         });
 
@@ -672,7 +677,7 @@ public class VectorSpaceModelIR {
 
                 switch (response) {
                     case "n":
-                        System.out.println("Closing program.");
+                        System.out.println("Program closed.");
                         input.close();
                         System.exit(0);
                         break;
