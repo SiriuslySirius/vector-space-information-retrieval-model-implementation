@@ -9,15 +9,12 @@
 
 // Java
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.BufferedReader;
-import java.io.PrintWriter;
-import java.io.UnsupportedEncodingException;
 import java.io.IOException;
 import java.util.regex.Pattern;
 import java.util.ArrayList;
-import java.util.InputMismatchException;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Scanner;
@@ -66,7 +63,7 @@ public class VectorSpaceModelIR {
         this.docAbstractWeights = new TreeMap<Integer, TreeMap<String, Double>>();
 
         // For storing final Cosine Similarity Scores
-        this.finalCosineSimilarityScores = new TreeMap<Double, Integer>();
+        this.finalCosineSimilarityScores = new TreeMap<Double, Integer>(Collections.reverseOrder());
 
         // For storing QueryID and the Query
         this.queryList = new TreeMap<String, String>();
@@ -254,8 +251,8 @@ public class VectorSpaceModelIR {
                 int raw_tf = doc.getValue();
 
                 // If the document exists in docTitleWeights
-                if (docTitleWeights.containsKey(docID)) {
-                    docTitleWeights.get(docID).put(
+                if (this.docTitleWeights.containsKey(docID)) {
+                    this.docTitleWeights.get(docID).put(
                             termKey,
                             (raw_tf > 0 ? 1 + Math.log10(raw_tf) : 0) * Math.log10(collectionSize / termDocFreq));
                 }
@@ -265,7 +262,7 @@ public class VectorSpaceModelIR {
                     newTree.put(
                             termKey,
                             ((raw_tf > 0 ? 1 + Math.log10(raw_tf) : 0) * Math.log10(collectionSize / termDocFreq)));
-                    docTitleWeights.put(docID, newTree);
+                    this.docTitleWeights.put(docID, newTree);
                 }
             });
         });
@@ -284,8 +281,8 @@ public class VectorSpaceModelIR {
                 int raw_tf = doc.getValue();
 
                 // If the document exists in docTitleWeights
-                if (docAbstractWeights.containsKey(docID)) {
-                    docAbstractWeights.get(docID).put(
+                if (this.docAbstractWeights.containsKey(docID)) {
+                    this.docAbstractWeights.get(docID).put(
                             term.getKey(),
                             (raw_tf > 0 ? 1 + Math.log10(raw_tf) : 0) * Math.log10(collectionSize / termDocFreq));
                 }
@@ -295,7 +292,7 @@ public class VectorSpaceModelIR {
                     newTree.put(
                             term.getKey(),
                             ((raw_tf > 0 ? 1 + Math.log10(raw_tf) : 0) * Math.log10(collectionSize / termDocFreq)));
-                    docAbstractWeights.put(docID, newTree);
+                    this.docAbstractWeights.put(docID, newTree);
                 }
             });
         });
@@ -347,103 +344,101 @@ public class VectorSpaceModelIR {
         int collectionSize = this.documents.size();
 
         /*
-         *
-         * TO-DO: Get intersection prior to making query vectors.
-         *
+         * Get query weights and term intersection for Title and Abstract from the
+         * document collection
          */
-
-        // Get query weights for Title and Abstract
-        ArrayList<Double> queryTitleWeightVector = new ArrayList<Double>();
-        ArrayList<Double> queryAbstractWeightVector = new ArrayList<Double>();
+        TreeMap<String, Double> queryTitleWeights = new TreeMap<String, Double>();
+        TreeMap<String, Double> queryAbstractWeights = new TreeMap<String, Double>();
         Set<Map.Entry<String, Integer>> termQueryFreqEntry = termQueryFreq.entrySet();
         termQueryFreqEntry.forEach(term -> {
             int raw_tf = term.getValue();
             String termKey = term.getKey();
             int termDocTitleFreq, termDocAbstractFreq;
-            if (this.termTitleFreq.get(termKey) == null) {
-                termDocTitleFreq = 0;
-            } else {
+            if (this.termTitleFreq.get(termKey) != null) {
                 termDocTitleFreq = this.termTitleFreq.get(term.getKey()).size();
+                queryTitleWeights.put(termKey,
+                        (raw_tf > 0 ? 1 + Math.log(raw_tf) : 0) * Math.log(collectionSize / termDocTitleFreq));
             }
 
-            if (this.termAbstractFreq.get(termKey) == null) {
-                termDocAbstractFreq = 0;
-            } else {
+            if (this.termAbstractFreq.get(termKey) != null) {
                 termDocAbstractFreq = this.termAbstractFreq.get(term.getKey()).size();
+                queryAbstractWeights.put(termKey,
+                        (raw_tf > 0 ? 1 + Math.log(raw_tf) : 0) * Math.log(collectionSize / termDocAbstractFreq));
             }
-
-            queryTitleWeightVector
-                    .add(termDocTitleFreq == 0 ? 0
-                            : (raw_tf > 0 ? 1 + Math.log(raw_tf) : 0) * Math.log(collectionSize / termDocTitleFreq));
-            queryAbstractWeightVector
-                    .add(termDocAbstractFreq == 0 ? 0
-                            : (raw_tf > 0 ? 1 + Math.log(raw_tf) : 0) * Math.log(collectionSize / termDocAbstractFreq));
         });
 
         // For iterating through documents for accessing multiple HashTrees
         Set<Map.Entry<Integer, String>> docs = this.documents.entrySet();
 
-        // For storing intersection weight vectors for Title and Abstract from
-        // termQueryFreq
-        TreeMap<Integer, ArrayList<Double>> docsTitleWeightVector = new TreeMap<Integer, ArrayList<Double>>();
-        TreeMap<Integer, ArrayList<Double>> docsAbstractWeightVector = new TreeMap<Integer, ArrayList<Double>>();
+        // Need these for looping for intersection.
+        Set<Map.Entry<String, Double>> queryTitleWeightsEntry = queryTitleWeights.entrySet();
+        Set<Map.Entry<String, Double>> queryAbstractWeightsEntry = queryAbstractWeights.entrySet();
 
-        // Get the intersection weight vectors for Title and Abstract from termQueryFreq
+        // Get the intersection weight vectors for Title and Abstract from query weights
+        // for Title and Abstract
         docs.forEach(doc -> {
             ArrayList<Double> docTitleWeightVector = new ArrayList<Double>();
             ArrayList<Double> docAbstractWeightVector = new ArrayList<Double>();
+            ArrayList<Double> queryTitleWeightVector = new ArrayList<Double>();
+            ArrayList<Double> queryAbstractWeightVector = new ArrayList<Double>();
+
             int docID = doc.getKey();
-            termQueryFreqEntry.forEach(term -> {
-                String raw_term = term.getKey();
-                if (docTitleWeights.get(docID).containsKey(raw_term)) {
-                    docTitleWeightVector.add(docTitleWeights.get(docID).get(raw_term));
+
+            // Title
+            queryTitleWeightsEntry.forEach(entry -> {
+                String term = entry.getKey();
+                if (this.docTitleWeights.get(docID) != null && this.docTitleWeights.get(docID).containsKey(term)) {
+                    docTitleWeightVector.add(this.docTitleWeights.get(docID).get(term));
+                } else {
+                    docTitleWeightVector.add((double) 0);
                 }
-                if (docAbstractWeights.get(docID).containsKey(raw_term)) {
-                    docAbstractWeightVector.add(docAbstractWeights.get(docID).get(raw_term));
-                }
+                queryTitleWeightVector.add(entry.getValue());
             });
-            docsTitleWeightVector.put(docID, docTitleWeightVector);
-            docsAbstractWeightVector.put(docID, docAbstractWeightVector);
-        });
 
-        // Get the Cosine Similarity Scores
-        docs.forEach(doc -> {
-            int docID = doc.getKey();
-            finalCosineSimilarityScores.put(
-                    ((boost_a *
-                            ((ProdSumTFXIDF(queryTitleWeightVector, docsTitleWeightVector.get(docID)))
-                                    / ((Math.sqrt(SumSquaredTFXIDF(queryTitleWeightVector)))
-                                            * (Math.sqrt(SumSquaredTFXIDF(docsTitleWeightVector.get(docID)))))))
-                            +
-                            (boost_b *
-                                    (ProdSumTFXIDF(queryAbstractWeightVector, docsAbstractWeightVector.get(docID)))
-                                    / ((Math.sqrt(SumSquaredTFXIDF(queryAbstractWeightVector)))
-                                            * (Math.sqrt(SumSquaredTFXIDF(docsAbstractWeightVector.get(docID))))))),
-                    docID);
-        });
+            // Abstract
+            queryAbstractWeightsEntry.forEach(entry -> {
+                String term = entry.getKey();
+                if (this.docAbstractWeights.get(docID) != null
+                        && this.docAbstractWeights.get(docID).containsKey(term)) {
+                    docAbstractWeightVector.add(this.docAbstractWeights.get(docID).get(term));
+                } else {
+                    docAbstractWeightVector.add((double) 0);
+                }
+                queryAbstractWeightVector.add(entry.getValue());
+            });
 
+            // Get Final Cosine Similarity Scores
+            double titleCSSNumerator = ProdSumTFXIDF(queryTitleWeightVector, docTitleWeightVector);
+            double titleCSSDenominator = ((Math.sqrt(SumSquaredTFXIDF(queryTitleWeightVector)))
+                    * (Math.sqrt(SumSquaredTFXIDF(docTitleWeightVector))));
+            double abstractCSSNumerator = ProdSumTFXIDF(queryAbstractWeightVector, docAbstractWeightVector);
+            double abstractCSSDenominator = ((Math.sqrt(SumSquaredTFXIDF(queryAbstractWeightVector)))
+                    * (Math.sqrt(SumSquaredTFXIDF(docAbstractWeightVector))));
+            double finalScore = ((boost_a * (titleCSSDenominator == 0 ? 0 : (titleCSSNumerator / titleCSSDenominator)))
+                    + (boost_b * (abstractCSSDenominator == 0 ? 0
+                            : (abstractCSSNumerator / abstractCSSDenominator))));
+
+            if (finalScore > 0) {
+                finalCosineSimilarityScores.put(finalScore, docID);
+            }
+        });
     }
 
     /*
      * Prints out top k results
      */
-    void DisplayTopKDocs(int k) {
-        TreeMap<Double, Integer> topKResults = this.finalCosineSimilarityScores.entrySet().stream()
-                .limit(k)
-                .collect(TreeMap::new, (m, e) -> m.put(e.getKey(), e.getValue()),
-                        Map::putAll);
-
-        System.out.println("Your top " + k + " results:\n");
-        System.out.format("%7s, %7s %30s", "Rank", "DocID", "Cosine Similarity Score");
-
-        Set<Map.Entry<Double, Integer>> topKResultsEntry = topKResults.entrySet();
+    void DisplayDocs() {
+        System.out.println("Your results:\n");
+        System.out.format("%7s, %7s, %24s", "Rank", "DocID", "Cosine Similarity Score");
+        System.out.println();
 
         int rank = 1;
-        for (Map.Entry<Double, Integer> result : topKResultsEntry) {
-            System.out.format("%7d %7d %30d", rank, result.getValue(), result.getKey());
+        for (Map.Entry<Double, Integer> result : this.finalCosineSimilarityScores.entrySet()) {
+            System.out.format("%7d %7d %24f", rank, result.getValue(), result.getKey());
             System.out.println();
             rank++;
         }
+        System.out.println();
     }
 
     void BuildQueryList(String queryPath) {
@@ -498,6 +493,10 @@ public class VectorSpaceModelIR {
 
     String GetQuery(String ID) {
         return this.queryList.get(ID);
+    }
+
+    String GetTitle(int ID) {
+        return this.documents.get(ID);
     }
 
     /*
@@ -619,7 +618,6 @@ public class VectorSpaceModelIR {
         String response, queryID;
         float boostTitle, boostAbstract;
         boostTitle = boostAbstract = 0;
-        int numResultsToDisplay = -1;
 
         while (true) {
             // Asking to search the corpus or search corpus again
@@ -690,41 +688,14 @@ public class VectorSpaceModelIR {
 
             } while (boostTitle + boostAbstract != 1);
 
-            // Asking for number of documents to display on command prompt
-            do {
-                System.out.println("Input the number of top results you wish to see.");
-                System.out.println(
-                        "NOTE: 1400 is the max, but you may not be able to see the top results in the console.");
-
-                try {
-                    System.out.print("Input # of documents to display: ");
-                    numResultsToDisplay = Integer.parseInt(input.nextLine());
-
-                } catch (NumberFormatException e) {
-                    System.out.println("Invalid input, try again.\n");
-                    continue;
-                }
-
-                if (numResultsToDisplay <= 0) {
-                    System.out.println("Value cannot be <= 0, try again.\n");
-                    continue;
-                } else if (numResultsToDisplay > 1400) {
-                    System.out.println("Value cannot be > 1400, try again.\n");
-                    continue;
-                }
-
-            } while (numResultsToDisplay <= 0 || numResultsToDisplay > 1400);
-
             System.out.println("\nNow calculating Cosine Similarity Scoring...");
             long startCSS = System.nanoTime();
             data.CalcCSS(data.GetQuery(queryID), boostTitle, boostAbstract);
             long checkpointCalcCSS = System.nanoTime();
             System.out.println("Cosine Similarity Scoring completed in "
                     + DeltaNanoToSec(checkpointCalcCSS, startCSS) + " seconds\n");
-
-            System.out.println("Now display top query results:");
-            data.DisplayTopKDocs(numResultsToDisplay);
-
+            data.DisplayDocs();
+            count++;
         }
 
     } // main()
