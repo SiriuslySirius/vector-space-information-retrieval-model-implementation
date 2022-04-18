@@ -4,7 +4,7 @@
 
     Authors: Abelson Abueg
     Date Created: 4 Apr 2022
-    Last Updated: 13 Apr 2022
+    Last Updated: 18 Apr 2022
 */
 
 // Java
@@ -14,6 +14,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.util.regex.Pattern;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.Map;
@@ -50,6 +51,15 @@ public class VectorSpaceModelIR {
 
     // TreeMap<QueryID, Query>
     private TreeMap<String, String> queryList;
+
+    // Default Lucene Stop Words
+    private ArrayList<String> stopwords = new ArrayList<String>(Arrays.asList(
+        "a", "an", "and", "are", "as", "at", "be", "but", "by",
+        "for", "if", "in", "into", "is", "it",
+        "no", "not", "of", "on", "or", "such",
+        "that", "the", "their", "then", "there", "these",
+        "they", "this", "to", "was", "will", "with"
+    ));
 
     // Default Constructor; it's all you really need.
     public VectorSpaceModelIR() {
@@ -132,8 +142,13 @@ public class VectorSpaceModelIR {
                         if (!cleanLine.isEmpty()) {
                             for (String term : cleanLine) {
                                 String stemmedTerm = stemmer.stem(term);
+
+                                // To avoid adding stopwords
+                                if(stopwords.contains(term)) {
+                                    continue;
+                                }
                                 // If the term exists in the title term frequency
-                                if (this.termTitleFreq.containsKey(stemmedTerm)) {
+                                else if (this.termTitleFreq.containsKey(stemmedTerm)) {
                                     // If the document exists in the title term frequency
                                     if (this.termTitleFreq.get(stemmedTerm).containsKey(docID)) {
                                         // Update the term count from the document.
@@ -189,8 +204,13 @@ public class VectorSpaceModelIR {
                         if (!cleanLine.isEmpty()) {
                             for (String term : cleanLine) {
                                 String stemmedTerm = stemmer.stem(term);
+                                
+                                // To avoid adding stopwords.
+                                if(stopwords.contains(term)) {
+                                    continue;
+                                }
                                 // If the term exists in the title term frequency
-                                if (this.termAbstractFreq.containsKey(stemmedTerm)) {
+                                else if (this.termAbstractFreq.containsKey(stemmedTerm)) {
                                     // If the document exists in the title term frequency
                                     if (this.termAbstractFreq.get(stemmedTerm).containsKey(docID)) {
                                         // Update the term count from the document.
@@ -325,8 +345,14 @@ public class VectorSpaceModelIR {
 
         while (wordMatcher.find()) {
             // Extract and convert the word to lowercase
-            String word = query.substring(wordMatcher.start(), wordMatcher.end());
-            cleanQuery.add(stemmer.stem(word.toLowerCase()));
+            String word = query.substring(wordMatcher.start(), wordMatcher.end()).toLowerCase();
+            // Avoid adding stopwords
+            if(stopwords.contains(word)) {
+                continue;
+            }
+            else {
+                cleanQuery.add(stemmer.stem(word));
+            }
         } // while - wordMatcher
 
         // TreeMap<Term, Raw TF>
@@ -499,6 +525,10 @@ public class VectorSpaceModelIR {
         return this.documents.get(ID);
     }
 
+    void clearResults() {
+        this.finalCosineSimilarityScores.clear();
+    }
+
     /*
      *
      * HELPER METHODS
@@ -558,18 +588,17 @@ public class VectorSpaceModelIR {
          * If not, print message and exit
          */
 
-        if (args.length != 3) {
+        if (args.length != 2) {
             System.err.println("\nNumber of command line arguments must be 2");
             System.err.println("You have given " + args.length + " command line arguments");
             System.err.println("Incorrect usage. Program terminated");
             System.err.println(
-                    "Correct usage: java VectorSpaceModelIR <cran.all.1400-filepath> <cran.qry-filepath> <output-directory-path>");
+                    "Correct usage: java VectorSpaceModelIR <cran.all.1400-filepath> <cran.qry-filepath>");
             error = 1;
         }
 
         File corpus = new File(args[0]);
         File query = new File(args[1]);
-        File outputPath = new File(args[2]);
 
         if (!(corpus.exists() && corpus.isFile() && corpus.getName().compareTo("cran.all.1400") == 0)) {
             System.err.println(
@@ -579,10 +608,6 @@ public class VectorSpaceModelIR {
         if (!(query.exists() && query.isFile() && query.getName().compareTo("cran.qry") == 0)) {
             System.err.println(
                     "Error: <cran.qry-filepath> is not a filepath to the cran.qry file or the file does not exists.");
-            error = 1;
-        }
-        if (!(outputPath.exists() && outputPath.isDirectory())) {
-            System.err.println("Error: <output-directory-path> is not a directory or the directory does not exists.");
             error = 1;
         }
         if (error == 1) {
@@ -627,6 +652,7 @@ public class VectorSpaceModelIR {
                         System.out.println("Would you like to search the corpus? (Y/N)");
                         break;
                     default:
+                        data.clearResults();
                         System.out.println("Would you like continue searching the corpus? (Y/N)");
                         break;
                 }
