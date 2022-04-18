@@ -380,16 +380,25 @@ public class VectorSpaceModelIR {
             int raw_tf = term.getValue();
             String termKey = term.getKey();
             int termDocTitleFreq, termDocAbstractFreq;
+
+            // If the term does exist in the index
             if (this.termTitleFreq.get(termKey) != null) {
                 termDocTitleFreq = this.termTitleFreq.get(term.getKey()).size();
                 queryTitleWeights.put(termKey,
-                        (raw_tf > 0 ? 1 + Math.log(raw_tf) : 0) * Math.log(collectionSize / termDocTitleFreq));
+                        (1 + Math.log(raw_tf)) * Math.log(collectionSize / termDocTitleFreq));
+            }
+            else {
+                queryTitleWeights.put(termKey,(double) 0);
             }
 
+            // If the term does exist in the index
             if (this.termAbstractFreq.get(termKey) != null) {
                 termDocAbstractFreq = this.termAbstractFreq.get(term.getKey()).size();
                 queryAbstractWeights.put(termKey,
-                        (raw_tf > 0 ? 1 + Math.log(raw_tf) : 0) * Math.log(collectionSize / termDocAbstractFreq));
+                        (1 + Math.log(raw_tf)) * Math.log(collectionSize / termDocAbstractFreq));
+            }
+            else {
+                queryAbstractWeights.put(termKey,(double) 0);
             }
         });
 
