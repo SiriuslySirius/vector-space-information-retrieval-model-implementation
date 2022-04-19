@@ -4,7 +4,7 @@
 
     Authors: Abelson Abueg
     Date Created: 4 Apr 2022
-    Last Updated: 18 Apr 2022
+    Last Updated: 19 Apr 2022
 */
 
 // Java
@@ -467,18 +467,23 @@ public class VectorSpaceModelIR {
     /*
      * Prints out top k results
      */
-    void DisplayDocs() {
-        System.out.println("Your results:\n");
-        System.out.format("%7s, %7s, %24s", "Rank", "DocID", "Cosine Similarity Score");
-        System.out.println();
+    void DisplayTopKDocs(int k, String queryID) {
+        System.out.println("\nYour top " + k + " results for query " + queryID + ":\n");
 
         int rank = 1;
+        int count = 0;
         for (Map.Entry<Double, Integer> result : this.finalCosineSimilarityScores.entrySet()) {
-            System.out.format("%7d %7d %24f", rank, result.getValue(), result.getKey());
+            if(count == k) {
+                break;
+            }
+            int DocID = result.getValue();
+            System.out.println("Title: " + GetTitle(DocID));
+            System.out.format("%-4s \t %5s \t %23s\n",  "Rank", "DocID", "Cosine Similarity Score");
+            System.out.format("%-4d \t %-5s \t %-23f\n", rank, DocID, result.getKey());
             System.out.println();
             rank++;
+            count++;
         }
-        System.out.println();
     }
 
     void BuildQueryList(String queryPath) {
@@ -628,7 +633,7 @@ public class VectorSpaceModelIR {
             System.exit(1);
         }
 
-        System.out.println("Please wait, now processing the cran.all.1400 corpus and cran.qry file...\n");
+        System.out.println("\nPlease wait, now processing the cran.all.1400 corpus and cran.qry file...\n");
         long startProcessTime = System.nanoTime();
         VectorSpaceModelIR data = new VectorSpaceModelIR();
 
@@ -656,9 +661,11 @@ public class VectorSpaceModelIR {
         int count = 1;
         String response, queryID;
         float boostTitle, boostAbstract;
+        int numResultsToDisplay = 0;
         boostTitle = boostAbstract = 0;
 
         while (true) {
+            
             // Asking to search the corpus or search corpus again
             do {
                 switch (count) {
@@ -677,7 +684,7 @@ public class VectorSpaceModelIR {
 
                 switch (response) {
                     case "n":
-                        System.out.println("Program closed.");
+                        System.out.println("Program closed.\n");
                         input.close();
                         System.exit(0);
                         break;
@@ -734,7 +741,33 @@ public class VectorSpaceModelIR {
             long checkpointCalcCSS = System.nanoTime();
             System.out.println("Cosine Similarity Scoring completed in "
                     + DeltaNanoToSec(checkpointCalcCSS, startCSS) + " seconds\n");
-            data.DisplayDocs();
+
+            // Asking for number of documents to display on command prompt
+            do {
+                System.out.println("Input the number of top results you wish to see.");
+                System.out.println(
+                        "NOTE: 1400 is the max, but you may not be able to see the top results in the console.");
+
+                try {
+                    System.out.print("Input # of documents to display: ");
+                    numResultsToDisplay = Integer.parseInt(input.nextLine());
+
+                } catch (NumberFormatException e) {
+                    System.out.println("Invalid input, try again.\n");
+                    continue;
+                }
+
+                if (numResultsToDisplay <= 0) {
+                    System.out.println("Value cannot be <= 0, try again.\n");
+                    continue;
+                } else if (numResultsToDisplay > 1400) {
+                    System.out.println("Value cannot be > 1400, try again.\n");
+                    continue;
+                }
+
+            } while (numResultsToDisplay <= 0 || numResultsToDisplay > 1400);
+            
+            data.DisplayTopKDocs(numResultsToDisplay, queryID);
             count++;
         }
 
