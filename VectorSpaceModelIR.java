@@ -473,12 +473,12 @@ public class VectorSpaceModelIR {
         int rank = 1;
         int count = 0;
         for (Map.Entry<Double, Integer> result : this.finalCosineSimilarityScores.entrySet()) {
-            if(count == k) {
+            if (count == k) {
                 break;
             }
             int DocID = result.getValue();
             System.out.println("Title: " + GetTitle(DocID));
-            System.out.format("%-4s \t %5s \t %23s\n",  "Rank", "DocID", "Cosine Similarity Score");
+            System.out.format("%-4s \t %5s \t %23s\n", "Rank", "DocID", "Cosine Similarity Score");
             System.out.format("%-4d \t %-5s \t %-23f\n", rank, DocID, result.getKey());
             System.out.println();
             rank++;
@@ -665,17 +665,14 @@ public class VectorSpaceModelIR {
         boostTitle = boostAbstract = 0;
 
         while (true) {
-            
+
             // Asking to search the corpus or search corpus again
             do {
-                switch (count) {
-                    case 1:
-                        System.out.println("Would you like to search the corpus? (Y/N)");
-                        break;
-                    default:
-                        data.clearResults();
-                        System.out.println("Would you like continue searching the corpus? (Y/N)");
-                        break;
+                if (count == 1) {
+                    System.out.println("Would you like to search the corpus? (Y/N)");
+                } else {
+                    data.clearResults();
+                    System.out.println("Would you like to continue searching the corpus? (Y/N)");
                 }
 
                 System.out.print("Input Y/N: ");
@@ -720,16 +717,27 @@ public class VectorSpaceModelIR {
                     System.out.print("Input title boost: ");
                     boostTitle = Float.parseFloat(input.nextLine());
 
+                    if (boostTitle > 1 || boostTitle < 0) {
+                        System.out.println("\nInvalid input. Title boost value must be from 0 to 1.\n");
+                        continue;
+                    }
+
                     System.out.print("Input abstract boost: ");
                     boostAbstract = Float.parseFloat(input.nextLine());
+
+                    if (boostAbstract > 1 || boostAbstract > 0) {
+                        System.out.println("\nInvalid input.  Abstract boost value must be from 0 to 1, try again.\n");
+                        continue;
+                    }
+
                     System.out.println();
                 } catch (NumberFormatException e) {
-                    System.out.println("Invalid input, try again.\n");
+                    System.out.println("\nInvalid input try again.\n");
                     continue;
                 }
 
                 if (boostTitle + boostAbstract != 1) {
-                    System.out.println("Boost values don't sum to 1, try again.\n");
+                    System.out.println("\nBoost values don't sum to 1, try again.\n");
                     continue;
                 }
 
@@ -753,20 +761,20 @@ public class VectorSpaceModelIR {
                     numResultsToDisplay = Integer.parseInt(input.nextLine());
 
                 } catch (NumberFormatException e) {
-                    System.out.println("Invalid input, try again.\n");
+                    System.out.println("\nInvalid input, try again.\n");
                     continue;
                 }
 
                 if (numResultsToDisplay <= 0) {
-                    System.out.println("Value cannot be <= 0, try again.\n");
+                    System.out.println("\nValue cannot be <= 0, try again.\n");
                     continue;
                 } else if (numResultsToDisplay > 1400) {
-                    System.out.println("Value cannot be > 1400, try again.\n");
+                    System.out.println("\nValue cannot be > 1400, try again.\n");
                     continue;
                 }
 
             } while (numResultsToDisplay <= 0 || numResultsToDisplay > 1400);
-            
+
             data.DisplayTopKDocs(numResultsToDisplay, queryID);
             count++;
         }
