@@ -613,7 +613,7 @@ public class VectorSpaceModelIR {
             System.err.println("Incorrect usage. Program terminated");
             System.err.println(
                     "Correct usage: java VectorSpaceModelIR <cran.all.1400-filepath> <cran.qry-filepath>");
-            error = 1;
+            System.exit(1);
         }
 
         File corpus = new File(args[0]);
