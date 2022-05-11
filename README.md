@@ -1,2 +1,2 @@
-# vector-space-information-retrieval-model-implementation
+# Vector Space Information Retrieval Model Implementation
  
